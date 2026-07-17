@@ -520,7 +520,7 @@ function buildGravel() {
       const y = (j - 0.5) * cell + rnd(-3, 3);
       const spr = stoneSprites[irnd(0, stoneSprites.length - 1)];
       const big = Math.random() < 0.025;
-      const sc = big ? rnd(0.42, 0.6) : rnd(0.2, 0.32);
+      const sc = big ? rnd(0.45, 0.62) : rnd(0.28, 0.4);
       // 影(土に落ちる影なので暖色寄り)
       g.beginPath();
       g.ellipse(x + 1.3, y + 1.8, STONE_R * sc * 1.1, STONE_R * sc * 0.95, 0, 0, TAU);
@@ -535,6 +535,18 @@ function buildGravel() {
       g.restore();
     }
   }
+  // すき間を小石で埋める(土はほんの少し覗く程度に)
+  for (let n = 0; n < (gravelCssW * gravelCssH) / 300; n++) {
+    const spr = stoneSprites[irnd(0, stoneSprites.length - 1)];
+    const sc = rnd(0.16, 0.26);
+    g.save();
+    g.translate(rnd(gravelCssW), rnd(gravelCssH));
+    g.rotate(rnd(-0.6, 0.6));
+    g.scale(sc * rnd(0.85, 1.2), sc);
+    g.drawImage(spr, -32, -32);
+    g.restore();
+  }
+
   // 地面のうねり(ゆるい明暗のむら)
   const patches = Math.round((gravelCssW * gravelCssH) / 60000);
   for (let n = 0; n < patches; n++) {
