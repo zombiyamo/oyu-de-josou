@@ -206,6 +206,10 @@ const LOCALES = {
     nextUnlock: (n) => `次の新種まで あと${n}本`,
     allUnlocked: '13種すべてに出会いました。図鑑コンプリート!🎉',
     hudComplete: 'コンプリート🎉',
+    dropKettle: '✨ 金のやかんが落ちた!タップで拾えます',
+    dropHerb: '🧪 除草剤が落ちた!タップで拾えます',
+    useKettle: '金のやかん発動!20秒間、やかんが2つに🫖🫖',
+    useHerb: '🧪 除草剤を散布!',
     reset: '除草の記録をリセット',
     resetConfirm: '本当にリセットする?(もう一度押す)',
     resetDone: '除草の記録をリセットしました。雑草の解放も最初からです',
@@ -248,6 +252,10 @@ const LOCALES = {
     nextUnlock: (n) => `Next weed: ${n} to go`,
     allUnlocked: 'You\'ve met all 13. Collection complete! 🎉',
     hudComplete: 'Complete 🎉',
+    dropKettle: '✨ A golden kettle dropped! Tap to pick it up',
+    dropHerb: '🧪 Weed killer dropped! Tap to pick it up',
+    useKettle: 'Golden kettle! Two kettles for 20s 🫖🫖',
+    useHerb: '🧪 Weed killer sprayed!',
     reset: 'Reset weeding records',
     resetConfirm: 'Really reset? (tap again)',
     resetDone: 'Records reset. Species unlocks start over',
@@ -290,6 +298,10 @@ const LOCALES = {
     nextUnlock: (n) => `距新品种还差 ${n} 株`,
     allUnlocked: '13种全部遇见,图鉴完成!🎉',
     hudComplete: '已集齐🎉',
+    dropKettle: '✨ 掉落了金水壶!点击拾取',
+    dropHerb: '🧪 掉落了除草剂!点击拾取',
+    useKettle: '金水壶发动!20秒内双壶齐下🫖🫖',
+    useHerb: '🧪 除草剂喷洒!',
     reset: '重置除草记录',
     resetConfirm: '确定要重置?(再点一次)',
     resetDone: '记录已重置,品种解锁重新开始',
@@ -332,6 +344,10 @@ const LOCALES = {
     nextUnlock: (n) => `새 품종까지 앞으로 ${n}개`,
     allUnlocked: '13종 모두 만났습니다. 도감 완성! 🎉',
     hudComplete: '도감 완성🎉',
+    dropKettle: '✨ 황금 주전자가 떨어졌다! 탭해서 줍기',
+    dropHerb: '🧪 제초제가 떨어졌다! 탭해서 줍기',
+    useKettle: '황금 주전자 발동! 20초간 주전자 2개🫖🫖',
+    useHerb: '🧪 제초제 살포!',
     reset: '제초 기록 초기화',
     resetConfirm: '정말 초기화할까요? (한 번 더 탭)',
     resetDone: '기록이 초기화되었습니다. 잡초 해금도 처음부터입니다',
@@ -1377,6 +1393,7 @@ function emitSplash(x, y, dt) {
   }
 }
 function emitFlakes(w) {
+  if (flakes.length > 240) return;   // 除草剤の一斉崩れでも溢れないように
   const r = w.radius();
   for (let i = 0; i < 9; i++) {
     const a = rnd(TAU);
@@ -1455,10 +1472,53 @@ function drawParticles() {
 /* ---------------- やかんとお湯 ----------------
    指の位置=やかん。お湯はその少し先(左下)に注がれる。
    指で着地点が隠れず、「やかんを持っている」感覚になる。 */
-const POUR_DELAY = 0.12;   // これより短い押下は「タップ」= 枯れ草の片付けだけ
+const POUR_DELAY = 0.12;   // これより短い押下は「タップ」= 枯れ草の片付け・アイテム拾い
 const pour = { active: false, started: false, holdTime: 0, x: 0, y: 0, tx: 0, ty: 0, pointerId: null };
 let lingering = null;    // 注ぎ終わった後もしばらく湯気が立つ {x, y, ttl}
 let ringTimer = 0, wetTimer = 0;
+
+/* ---- ボーナス ---- */
+const pickups = [];        // 地面に落ちたアイテム {x, y, kind:'kettle2'|'herbicide', age}
+let kettleBoostT = 0;      // 金のやかんの残り秒数(>0の間やかんが2つ)
+let herbicideWave = null;  // 除草剤の波 {t, cx, cy}
+const dropHintShown = {};  // 種類ごとの初回ドロップ案内
+
+function pourTargets() {
+  const list = [{ x: pour.tx, y: pour.ty }];
+  if (kettleBoostT > 0) {
+    const side = pour.x > 80 ? 1 : -1;
+    list.push({
+      x: clamp(pour.x + 36 * side, 14, Math.max(14, W - 14)),
+      y: pour.ty
+    });
+  }
+  return list;
+}
+
+function spawnPickup(x, y, kind) {
+  if (pickups.length >= 3) return;
+  pickups.push({
+    x: clamp(x, 24, Math.max(24, W - 24)),
+    y: clamp(y, 52, Math.max(52, H - 20)),
+    kind, age: 0
+  });
+  if (!dropHintShown[kind]) {
+    dropHintShown[kind] = true;
+    showToast(kind === 'herbicide' ? L.dropHerb : L.dropKettle);
+  }
+}
+
+function activatePickup(p) {
+  if (p.kind === 'kettle2') {
+    kettleBoostT = 20;
+    showToast(L.useKettle);
+    unlockChime();
+  } else {
+    herbicideWave = { t: 0, cx: p.x, cy: p.y };
+    showToast(L.useHerb);
+    spraySound();
+  }
+}
 
 function updatePourTarget() {
   // 着地点はやかんの注ぎ口のすぐ先。離れすぎると狙いにくい
@@ -1467,13 +1527,24 @@ function updatePourTarget() {
   pour.ty = clamp(pour.y + 40, 30, Math.max(30, H - 12));
 }
 
-function drawKettle(time) {
-  const k = { x: pour.x, y: pour.y };
-  const dx = pour.tx - k.x, dy = pour.ty - k.y;
+function drawKettleAt(kx, ky, tx, ty, time, golden) {
+  // golden=true は金のやかん(ボーナス)
+  const C = golden ? {
+    spout: ['#f5e2a0', '#dcbc62', '#b3924a'],
+    body: ['#f8ecc2', '#e0c470', '#b3924a'],
+    lid: ['#faf0cd', '#cfae57'],
+    stroke: '#8a6f2f', knob: '#6b5220', handle: 'rgba(90,70,30,0.9)'
+  } : {
+    spout: ['#d9dbde', '#aeb2b8', '#84888e'],
+    body: ['#eceef0', '#b9bdc2', '#83878d'],
+    lid: ['#f2f4f6', '#9da1a7'],
+    stroke: '#6b6f75', knob: '#3c3f44', handle: 'rgba(45,42,40,0.9)'
+  };
+  const dx = tx - kx, dy = ty - ky;
   const ang = Math.atan2(dy, dx);
   const spoutLen = 38;
-  const sx = k.x + Math.cos(ang) * spoutLen;
-  const sy = k.y + Math.sin(ang) * spoutLen;
+  const sx = kx + Math.cos(ang) * spoutLen;
+  const sy = ky + Math.sin(ang) * spoutLen;
 
   // --- お湯の流れ(注ぎ口 → 着水点) ---
   const segs = 10;
@@ -1484,8 +1555,8 @@ function drawKettle(time) {
     for (let i = 0; i <= segs; i++) {
       const t = i / segs;
       const wob = Math.sin(time * 22 + t * 9) * 1.3 * t;
-      const x = lerp(sx, pour.tx, t) + wob;
-      const y = lerp(sy, pour.ty, t) + wob * 0.4;
+      const x = lerp(sx, tx, t) + wob;
+      const y = lerp(sy, ty, t) + wob * 0.4;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     if (pass === 0) {
@@ -1501,7 +1572,7 @@ function drawKettle(time) {
 
   // --- やかん本体(上から見た図) ---
   ctx.save();
-  ctx.translate(k.x, k.y);
+  ctx.translate(kx, ky);
   ctx.rotate(ang);
   // 影
   ctx.beginPath();
@@ -1516,52 +1587,49 @@ function drawKettle(time) {
   ctx.lineTo(20, 6);
   ctx.closePath();
   const spg = ctx.createLinearGradient(20, -6, 20, 6);
-  spg.addColorStop(0, '#d9dbde');
-  spg.addColorStop(0.5, '#aeb2b8');
-  spg.addColorStop(1, '#84888e');
+  spg.addColorStop(0, C.spout[0]);
+  spg.addColorStop(0.5, C.spout[1]);
+  spg.addColorStop(1, C.spout[2]);
   ctx.fillStyle = spg;
   ctx.fill();
-  ctx.strokeStyle = '#6b6f75';
+  ctx.strokeStyle = C.stroke;
   ctx.lineWidth = 1;
   ctx.stroke();
   // 胴体
   const bg = ctx.createRadialGradient(-8, -8, 4, 0, 0, 30);
-  bg.addColorStop(0, '#eceef0');
-  bg.addColorStop(0.55, '#b9bdc2');
-  bg.addColorStop(1, '#83878d');
+  bg.addColorStop(0, C.body[0]);
+  bg.addColorStop(0.55, C.body[1]);
+  bg.addColorStop(1, C.body[2]);
   ctx.beginPath();
   ctx.ellipse(0, 0, 26, 22, 0, 0, TAU);
   ctx.fillStyle = bg;
   ctx.fill();
-  ctx.strokeStyle = '#63676d';
+  ctx.strokeStyle = C.stroke;
   ctx.lineWidth = 1.2;
   ctx.stroke();
   // ふた
   ctx.beginPath();
   ctx.ellipse(0, 0, 13, 11, 0, 0, TAU);
   const lg = ctx.createRadialGradient(-4, -4, 1, 0, 0, 13);
-  lg.addColorStop(0, '#f2f4f6');
-  lg.addColorStop(1, '#9da1a7');
+  lg.addColorStop(0, C.lid[0]);
+  lg.addColorStop(1, C.lid[1]);
   ctx.fillStyle = lg;
   ctx.fill();
-  ctx.strokeStyle = '#6b6f75';
+  ctx.strokeStyle = C.stroke;
   ctx.lineWidth = 1;
   ctx.stroke();
   // つまみ
   ctx.beginPath();
   ctx.arc(0, 0, 3.4, 0, TAU);
-  ctx.fillStyle = '#3c3f44';
+  ctx.fillStyle = C.knob;
   ctx.fill();
   // 取っ手(胴体をまたぐアーチを上から見た形)
   ctx.beginPath();
   ctx.ellipse(0, 0, 20, 24, 0, Math.PI * 0.62, Math.PI * 1.38);
-  ctx.strokeStyle = 'rgba(45,42,40,0.9)';
+  ctx.strokeStyle = C.handle;
   ctx.lineWidth = 4.4;
   ctx.stroke();
   ctx.restore();
-
-  // 注ぎ口からのかすかな湯気は update 側で emit
-  return { sx, sy };
 }
 
 /* ---------------- 効果音(Web Audio・全て合成) ---------------- */
@@ -1728,6 +1796,25 @@ function birdChirp() {
   }
 }
 
+function spraySound() {
+  // 除草剤の「シュコーッ」という散布音(控えめ)
+  if (!audio.ready || muted) return;
+  const c = audio.ctx, now = c.currentTime;
+  const src = c.createBufferSource();
+  src.buffer = audio.noiseBuf;
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.setValueAtTime(2400, now);
+  bp.frequency.exponentialRampToValueAtTime(800, now + 0.7);
+  bp.Q.value = 0.8;
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.linearRampToValueAtTime(0.05, now + 0.05);
+  g.gain.exponentialRampToValueAtTime(0.0008, now + 0.8);
+  src.connect(bp); bp.connect(g); g.connect(audio.master);
+  src.start(now); src.stop(now + 0.85);
+}
+
 function unlockChime() {
   // 新種解放のお知らせ。やわらかいペンタトニックの3音
   if (!audio.ready || muted) return;
@@ -1759,10 +1846,13 @@ function startCrumble(w) {
   crumblePoof();
 }
 
+let lastPoofT = -9;
 function crumblePoof() {
-  // 枯れ草がホロッと崩れる、やわらかい音
+  // 枯れ草がホロッと崩れる、やわらかい音(一斉崩れの時は間引く)
   if (!audio.ready || muted) return;
   const c = audio.ctx, now = c.currentTime;
+  if (now - lastPoofT < 0.12) return;
+  lastPoofT = now;
   const src = c.createBufferSource();
   src.buffer = audio.noiseBuf;
   src.playbackRate.value = rnd(0.5, 0.7);        // 低めでやわらかく
@@ -1923,7 +2013,16 @@ canvas.addEventListener('pointerdown', (e) => {
   updatePourTarget();
   try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   unlockAudio();
-  // タップした瞬間に、指の下の枯れ草は片付ける(やかんは出さない)
+  // タップした瞬間: 落ちているアイテムを拾う
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const p = pickups[i];
+    const dx = p.x - pour.x, dy = p.y - pour.y;
+    if (dx * dx + dy * dy < 30 * 30) {
+      pickups.splice(i, 1);
+      activatePickup(p);
+    }
+  }
+  // 指の下の枯れ草は片付ける(やかんは出さない)
   for (const w of weeds) {
     if (w.wither >= 1 && !w.removing) {
       const R = 36 + w.radius() * 0.4;
@@ -2036,38 +2135,52 @@ function update(dt, time) {
     }
   }
   if (pour.active && pour.started) {
-    // 熱を加える。お湯の着地点はやかん(指)の少し先
+    // 熱を加える。金のやかん発動中は着地点が2つになる
+    const targets = pourTargets();
     for (const w of weeds) {
       const R = 36 + w.radius() * 0.4;
-      const dx = w.x - pour.tx, dy = w.y - pour.ty;
-      const d2 = dx * dx + dy * dy;
       if (w.wither >= 1) {
         // 枯れ草はお湯がかかっても、指(やかん)で直接つついても片付く
         if (!w.removing) {
           const dxf = w.x - pour.x, dyf = w.y - pour.y;
-          if (d2 < R * R || dxf * dxf + dyf * dyf < R * R) startCrumble(w);
+          let hit = dxf * dxf + dyf * dyf < R * R;
+          for (const tg of targets) {
+            if (hit) break;
+            const dx = w.x - tg.x, dy = w.y - tg.y;
+            hit = dx * dx + dy * dy < R * R;
+          }
+          if (hit) startCrumble(w);
         }
         continue;
       }
-      if (d2 < R * R) {
-        const fall = 1 - Math.sqrt(d2) / R;
-        w.scald = Math.min(w.scald + dt * 1.15 * fall, 2.2);
-        // ドクダミは根まで火が通った瞬間、湯気がブワッと立つ(復活しない合図)
-        if (w.type === 'dokudami' && !w.rootCooked && w.scald >= 1.7) {
-          w.rootCooked = true;
-          emitSteamBurst(w.x, w.y, 12);
+      for (const tg of targets) {
+        const dx = w.x - tg.x, dy = w.y - tg.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < R * R) {
+          const fall = 1 - Math.sqrt(d2) / R;
+          w.scald = Math.min(w.scald + dt * 1.15 * fall, 2.2);
+          // ドクダミは根まで火が通った瞬間、湯気がブワッと立つ(復活しない合図)
+          if (w.type === 'dokudami' && !w.rootCooked && w.scald >= 1.7) {
+            w.rootCooked = true;
+            emitSteamBurst(w.x, w.y, 12);
+          }
         }
       }
     }
     // 濡れ・水しぶき・湯気・輪
     wetTimer -= dt;
-    if (wetTimer <= 0) { wetTimer = 0.07; addWet(pour.tx, pour.ty); }
-    emitSplash(pour.tx, pour.ty, dt);
-    emitSteam(pour.tx, pour.ty, 15, dt);
+    if (wetTimer <= 0) {
+      wetTimer = 0.07;
+      for (const tg of targets) addWet(tg.x, tg.y);
+    }
+    for (const tg of targets) {
+      emitSplash(tg.x, tg.y, dt);
+      emitSteam(tg.x, tg.y, 15, dt);
+    }
     ringTimer -= dt;
     if (ringTimer <= 0) {
       ringTimer = 0.15;
-      rings.push({ x: pour.tx, y: pour.ty, age: 0, life: 0.5 });
+      for (const tg of targets) rings.push({ x: tg.x, y: tg.y, age: 0, life: 0.5 });
     }
     // ぽこぽこ音(たまに連泡)
     audio.nextBubble -= dt;
@@ -2112,6 +2225,12 @@ function update(dt, time) {
         killsByType[w.type] = (killsByType[w.type] || 0) + 1;
         saveLS('oyu_totalKilled', totalKilled);
         saveLS('oyu_killsByType', killsByType);
+        // たまにボーナスアイテムが落ちる(除草剤で枯らした分からは落ちない)
+        if (!w.byHerbicide) {
+          const r = Math.random();
+          if (r < 0.015) spawnPickup(w.x, w.y, 'herbicide');
+          else if (r < 0.075) spawnPickup(w.x, w.y, 'kettle2');
+        }
         // 除草数に応じて新種が解放される
         for (const key in WEED_TYPES) {
           const tt = WEED_TYPES[key];
@@ -2140,6 +2259,31 @@ function update(dt, time) {
       if (w.wither < 0.15) w.wither = Math.max(0, w.wither - dt * 0.004);
     }
 
+  }
+
+  // ボーナスの経過
+  if (kettleBoostT > 0) kettleBoostT = Math.max(0, kettleBoostT - dt);
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const p = pickups[i];
+    p.age += dt;
+    if (p.age > 45) pickups.splice(i, 1);   // 拾われないまま長時間置かれたら消える
+  }
+  if (herbicideWave) {
+    herbicideWave.t += dt;
+    const R = herbicideWave.t * 400;
+    for (const w of weeds) {
+      if (w.removing) continue;
+      const dx = w.x - herbicideWave.cx, dy = w.y - herbicideWave.cy;
+      if (dx * dx + dy * dy < R * R) {
+        // 除草剤は根まで枯らす。波が届いた草から順に崩れていく
+        w.wither = 1;
+        w.scald = Math.max(w.scald, 1.2);
+        w.rootCooked = true;
+        w.byHerbicide = true;
+        startCrumble(w);
+      }
+    }
+    if (R > Math.hypot(W, H)) herbicideWave = null;
   }
 
   // 鳥のさえずり
@@ -2216,8 +2360,85 @@ function render(time) {
     if (w._dyn) drawWeed(w, time);
   }
 
+  // 落ちているボーナスアイテム
+  for (const p of pickups) {
+    const fade = p.age > 40 ? clamp((45 - p.age) / 5, 0, 1) : 1;
+    ctx.save();
+    ctx.globalAlpha = fade;
+    // ほのかな光
+    const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 16);
+    glow.addColorStop(0, p.kind === 'herbicide' ? 'rgba(150,230,140,0.4)' : 'rgba(255,225,130,0.45)');
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 16, 0, TAU);
+    ctx.fill();
+    if (p.kind === 'herbicide') {
+      // 小さな薬品ボトル
+      ctx.fillStyle = '#4d8f45';
+      ctx.strokeStyle = '#2f5e2b';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.roundRect(p.x - 4, p.y - 3, 8, 9, 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#dfe8da';
+      ctx.fillRect(p.x - 2.6, p.y - 0.5, 5.2, 4);   // ラベル
+      ctx.fillStyle = '#7a8a74';
+      ctx.fillRect(p.x - 2, p.y - 6, 4, 3);          // 首
+      ctx.fillStyle = '#e8e2c8';
+      ctx.fillRect(p.x - 2.6, p.y - 8, 5.2, 2.4);    // キャップ
+    } else {
+      // ミニ金やかん
+      ctx.fillStyle = '#e8cc74';
+      ctx.strokeStyle = '#96803a';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y + 1, 6.5, 5.5, 0, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x + 5, p.y - 1);
+      ctx.lineTo(p.x + 10, p.y - 3);
+      ctx.lineTo(p.x + 10, p.y - 1);
+      ctx.lineTo(p.x + 5, p.y + 1.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - 1, 1.4, 0, TAU);
+      ctx.fillStyle = '#6b5220';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, 5, 6.5, 0, Math.PI * 0.7, Math.PI * 1.3);
+      ctx.strokeStyle = 'rgba(90,70,30,0.9)';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   drawParticles();
-  if (pour.active && pour.started) drawKettle(time);
+
+  // 除草剤の波
+  if (herbicideWave) {
+    const R = herbicideWave.t * 400;
+    ctx.beginPath();
+    ctx.arc(herbicideWave.cx, herbicideWave.cy, R, 0, TAU);
+    ctx.strokeStyle = `rgba(160,225,140,${clamp(0.5 - herbicideWave.t * 0.22, 0, 1).toFixed(3)})`;
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+
+  if (pour.active && pour.started) {
+    drawKettleAt(pour.x, pour.y, pour.tx, pour.ty, time, false);
+    if (kettleBoostT > 0) {
+      const side = pour.x > 80 ? 1 : -1;
+      const k2x = clamp(pour.x + 72 * side, 20, Math.max(20, W - 20));
+      const t2 = pourTargets()[1];
+      if (t2) drawKettleAt(k2x, pour.y, t2.x, t2.y, time, true);
+    }
+  }
 
   dayTint();
   ctx.drawImage(vignetteCanvas, 0, 0, W, H);
