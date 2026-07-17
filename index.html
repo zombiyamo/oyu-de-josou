@@ -771,7 +771,7 @@ function makeWeed(x, y, typeKey, opts = {}) {
   };
 }
 
-const MAX_WEEDS = 170;   // 本数の上限(静的レイヤーのキャッシュがあるので多くても軽い)
+const MAX_WEEDS = 300;   // 放置の最終形態: 画面を覆い隠すほどの密林
 
 function weedTargetCount() {
   // W,Hはワールド座標(ズーム後の見える範囲)。画面の7割くらいが草になる密度
@@ -804,14 +804,18 @@ function spawnWeed(opts = {}) {
     }
     let ok = x >= margin && x <= W - margin && y >= topMargin && y <= H - margin;
     if (ok) {
+      // 混み合ってきたら株間の制限を緩めて、密林化を止めない
+      const crowded = weeds.length >= weedTargetCount();
+      const minD = crowded ? 7 : 10;
+      const closeLimit = crowded ? 18 : 10;
       let close = 0;
       for (const w of weeds) {
         const dx = w.x - x, dy = w.y - y;
         const d2 = dx * dx + dy * dy;
-        if (d2 < 10 * 10) { ok = false; break; }
+        if (d2 < minD * minD) { ok = false; break; }
         if (d2 < 24 * 24) close++;
       }
-      if (ok && close > 10) ok = false;   // 1点に積み重なりすぎない
+      if (ok && close > closeLimit) ok = false;   // 1点に積み重なりすぎない
     }
     if (ok || (opts.x !== undefined && attempt === 11)) {
       // 指定座標スポーン(根からの復活)は最終的に必ず画面内で成立させる
@@ -2115,7 +2119,7 @@ function update(dt, time) {
     const wantSpawn =
       (weeds.length < target && Math.random() < 1.15 - weeds.length / target) ||
       // 目標密度を超えても、放置していればじわじわ茂って画面が埋まっていく
-      (weeds.length < MAX_WEEDS && Math.random() < 0.22);
+      (weeds.length < MAX_WEEDS && Math.random() < 0.28);
     if (wantSpawn) {
       // 群生しがち: 多くは既存の株の近くから生えてくる
       if (weeds.length && Math.random() < 0.8) {
@@ -2318,6 +2322,7 @@ function update(dt, time) {
 /* 見た目が変化しない草(大半)はオフスクリーンにキャッシュして、
    毎フレームは「動いている草」だけを描く。これで数百本でも軽い。 */
 let weedLayer = null, weedLayerCtx = null, weedLayerDirty = true;
+const pendingLayerAdds = [];   // 新しく定着した草はレイヤー全体を作り直さず描き足す
 
 function isDynamicWeed(w) {
   if (w.removing || w.age < 2.4) return true;   // 崩れ中・生えたてのフェードイン中
@@ -2362,13 +2367,30 @@ function render(time) {
   weeds.sort((a, b) => a.y - b.y);
   for (const w of weeds) {
     const dyn = isDynamicWeed(w);
-    if (w._dyn !== dyn) { w._dyn = dyn; weedLayerDirty = true; }
+    if (w._dyn !== dyn) {
+      if (!dyn && w._dyn === true) {
+        pendingLayerAdds.push(w);   // 動→静: その1本を描き足すだけで済む
+      } else {
+        weedLayerDirty = true;      // 静→動(レイヤーから消す)や初期化は再構築
+      }
+      w._dyn = dyn;
+    }
   }
   if (weedLayerDirty ||
       !weedLayer ||
       weedLayer.width !== Math.max(1, Math.round(W * RES)) ||
       weedLayer.height !== Math.max(1, Math.round(H * RES))) {
     rebuildWeedLayer();
+    pendingLayerAdds.length = 0;
+  } else if (pendingLayerAdds.length) {
+    const mainCtx = ctx;
+    ctx = weedLayerCtx;
+    try {
+      for (const w of pendingLayerAdds) drawWeed(w, 0);
+    } finally {
+      ctx = mainCtx;
+    }
+    pendingLayerAdds.length = 0;
   }
   ctx.drawImage(weedLayer, 0, 0, W, H);
   for (const w of weeds) {
