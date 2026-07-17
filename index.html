@@ -1455,7 +1455,7 @@ function drawParticles() {
 /* ---------------- やかんとお湯 ----------------
    指の位置=やかん。お湯はその少し先(左下)に注がれる。
    指で着地点が隠れず、「やかんを持っている」感覚になる。 */
-const POUR_DELAY = 0.22;   // これより短い押下は「タップ」= 枯れ草の片付けだけ
+const POUR_DELAY = 0.12;   // これより短い押下は「タップ」= 枯れ草の片付けだけ
 const pour = { active: false, started: false, holdTime: 0, x: 0, y: 0, tx: 0, ty: 0, pointerId: null };
 let lingering = null;    // 注ぎ終わった後もしばらく湯気が立つ {x, y, ttl}
 let ringTimer = 0, wetTimer = 0;
