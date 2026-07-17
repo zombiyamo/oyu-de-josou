@@ -411,67 +411,74 @@ const WEED_TYPES = {
     weight: 0.19
   },
   rosette: {
-    name: 'タンポポ', unlockAt: 10,
+    name: 'タンポポ', unlockAt: 25,
     hue: 118, sat: 46, light: 27,
     scaldThreshold: 0.45, witherDur: 38,
     leafCount: [7, 10], leafLen: [20, 36], leafWidth: [8, 13],
     weight: 0.11
   },
   clover: {
-    name: 'シロツメクサ', unlockAt: 25,
+    name: 'シロツメクサ', unlockAt: 60,
     hue: 128, sat: 46, light: 28,
     scaldThreshold: 0.35, witherDur: 30,
     leafCount: [8, 12], leafLen: [11, 17], leafWidth: [9, 13],
     weight: 0.15
   },
   oobako: {
-    name: 'オオバコ', unlockAt: 45,
+    name: 'オオバコ', unlockAt: 120,
     hue: 124, sat: 42, light: 30,
     scaldThreshold: 0.5, witherDur: 40,
     leafCount: [5, 7], leafLen: [16, 30], leafWidth: [9, 14],
     weight: 0.08
   },
   dokudami: {
-    name: 'ドクダミ', unlockAt: 70,
+    name: 'ドクダミ', unlockAt: 200,
     hue: 136, sat: 44, light: 21,
     scaldThreshold: 0.72, witherDur: 60,
     leafCount: [5, 8], leafLen: [16, 25], leafWidth: [12, 18],
     weight: 0.11
   },
   enokoro: {
-    name: 'エノコログサ', unlockAt: 100,
+    name: 'エノコログサ', unlockAt: 320,
     hue: 95, sat: 48, light: 33,
     scaldThreshold: 0.3, witherDur: 26,
     leafCount: [7, 11], leafLen: [15, 30], leafWidth: [1.8, 2.8],
     weight: 0.1
   },
   sumire: {
-    name: 'スミレ', unlockAt: 140,
+    name: 'スミレ', unlockAt: 500,
     hue: 130, sat: 40, light: 24,
     scaldThreshold: 0.4, witherDur: 32,
     leafCount: [4, 6], leafLen: [12, 19], leafWidth: [10, 14],
     weight: 0.07
   },
   koke: {
-    name: 'ゼニゴケ', unlockAt: 190,
+    name: 'ゼニゴケ', unlockAt: 750,
     hue: 85, sat: 50, light: 30,
     scaldThreshold: 0.18, witherDur: 15,
     leafCount: [6, 9], leafLen: [10, 18], leafWidth: [7, 11],
     weight: 0.09
   },
   tsuyukusa: {
-    name: 'ツユクサ', unlockAt: 250,
+    name: 'ツユクサ', unlockAt: 1100,
     hue: 115, sat: 45, light: 30,
     scaldThreshold: 0.42, witherDur: 34,
     leafCount: [5, 8], leafLen: [18, 30], leafWidth: [7, 10],
     weight: 0.07
   },
   yotsuba: {
-    name: '四つ葉のクローバー', unlockAt: 350,
+    name: '四つ葉のクローバー', unlockAt: 1500,
     hue: 74, sat: 56, light: 38,
     scaldThreshold: 0.3, witherDur: 24,
     leafCount: [3, 5], leafLen: [11, 16], leafWidth: [9, 12],
     weight: 0.015
+  },
+  nijiyotsuba: {
+    name: '虹色の四つ葉のクローバー', unlockAt: 2000,
+    hue: 300, sat: 55, light: 45,
+    scaldThreshold: 0.3, witherDur: 24,
+    leafCount: [3, 5], leafLen: [12, 17], leafWidth: [10, 13],
+    weight: 0.008
   }
 };
 
@@ -845,6 +852,45 @@ function drawWeed(w, time) {
         ctx.fill();
         break;
       }
+      case 'nijiyotsuba': {
+        // この世に存在しない、虹色に輝く四つ葉
+        const stem = len * 0.5;
+        ctx.strokeStyle = `rgba(200,205,215,${(0.9 * (1 - lw * 0.5)).toFixed(2)})`;
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(stem, 0);
+        ctx.stroke();
+        ctx.translate(stem, 0);
+        const mix = clamp(1 - lw * 2, 0, 1);   // 枯れ始めると虹色が抜けていく
+        for (let k = 0; k < 4; k++) {
+          ctx.save();
+          ctx.rotate(-1.35 + k * 0.9);
+          const L = len * 0.5, Wd = width * 0.6;
+          const hueK = (90 * k + w.swayPhase * 57) % 360;
+          ctx.fillStyle = mix > 0
+            ? hslStr(hueK, 62 * mix + col[1] * (1 - mix), clamp(col[2] + 20 * mix, 4, 88))
+            : hslStr(col[0], col[1], col[2]);
+          ctx.beginPath();
+          ctx.ellipse(L * 0.55, 0, L * 0.5, Wd * 0.5, 0, 0, TAU);
+          ctx.fill();
+          ctx.strokeStyle = `rgba(255,255,255,${(0.5 * mix).toFixed(3)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(L * 0.2, 0, L * 0.4, -0.7, 0.7);
+          ctx.stroke();
+          ctx.restore();
+        }
+        // きらきら
+        ctx.fillStyle = `rgba(255,255,240,${(0.9 * mix).toFixed(2)})`;
+        for (let k = 0; k < 3; k++) {
+          const a = w.swayPhase * 3 + k * 2.1;
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * len * 0.5, Math.sin(a) * len * 0.4, 1.0, 0, TAU);
+          ctx.fill();
+        }
+        break;
+      }
       case 'rosette': {
         const bc = leaf.curve;
         drawRosetteLeaf(ctx, len, width, bc);
@@ -957,7 +1003,7 @@ function drawWeed(w, time) {
   }
 
   // 株元(葉が集まる中心が締まって見える)
-  const NO_CROWN = { dokudami: 1, katabami: 1, clover: 1, runner: 1, koke: 1, sumire: 1, yotsuba: 1 };
+  const NO_CROWN = { dokudami: 1, katabami: 1, clover: 1, runner: 1, koke: 1, sumire: 1, yotsuba: 1, nijiyotsuba: 1 };
   if (!NO_CROWN[w.type] && w.size > 0.15) {
     ctx.globalAlpha = dyingAlpha;
     ctx.beginPath();
