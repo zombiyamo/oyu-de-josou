@@ -417,12 +417,12 @@ const GRAVEL_PAD = 160;   // URLバー伸縮などの小さなリサイズで模
 
 const hslStr = (h, s, l) => `hsl(${h},${s}%,${l}%)`;
 
-// グレー基調の御影石パレット [色相, 彩度, 明度]。緑の草が映えるよう彩度は低く保つ
+// 暗いチャコールグレーの砕石パレット [色相, 彩度, 明度]
 const STONE_PALETTE = [
-  [215, 6, 74], [215, 5, 68], [210, 8, 62], [220, 10, 55],
-  [210, 4, 79], [0, 0, 71], [0, 0, 64], [225, 12, 48],
-  [40, 5, 70], [210, 6, 84], [215, 9, 58], [0, 0, 76],
-  [220, 7, 66], [205, 5, 72]
+  [215, 6, 32], [215, 5, 36], [210, 8, 40], [220, 8, 28],
+  [210, 4, 44], [0, 0, 34], [0, 0, 30], [225, 10, 25],
+  [210, 5, 48], [215, 7, 38], [0, 0, 42], [220, 6, 35],
+  [210, 4, 27], [205, 5, 46]
 ];
 
 /* 石はスプライトとして先に数種類描いておき、回転・拡縮でスタンプする。
@@ -438,50 +438,54 @@ function buildStoneSprites() {
     const g = c.getContext('2d');
     const [h, sa, l] = STONE_PALETTE[s % STONE_PALETTE.length];
     const cx = 32, cy = 32, r = STONE_R;
-    const n = irnd(7, 10), rot = rnd(TAU), ex = rnd(0.78, 1.22);
+    // 角ばった砕石: 頂点少なめ・直線の多角形
+    const n = irnd(5, 7), rot = rnd(TAU), ex = rnd(0.78, 1.25);
     const pts = [];
     for (let i = 0; i < n; i++) {
-      const a = rot + (i / n) * TAU + rnd(-0.15, 0.15);
-      const rr = r * rnd(0.72, 1.04);
+      const a = rot + (i / n) * TAU + rnd(-0.25, 0.25);
+      const rr = r * rnd(0.6, 1.05);
       pts.push([cx + Math.cos(a) * rr * ex, cy + Math.sin(a) * rr]);
     }
     const path = () => {
       g.beginPath();
-      let [mx0, my0] = midpoint(pts[n - 1], pts[0]);
-      g.moveTo(mx0, my0);
-      for (let i = 0; i < n; i++) {
-        const p = pts[i];
-        const [mx, my] = midpoint(p, pts[(i + 1) % n]);
-        g.quadraticCurveTo(p[0], p[1], mx, my);
-      }
+      g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < n; i++) g.lineTo(pts[i][0], pts[i][1]);
       g.closePath();
     };
-    // 左上からの光を想定した陰影
+    // 左上からの光を想定した陰影(岩なのでコントラスト強め)
     const grad = g.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
-    grad.addColorStop(0, hslStr(h, sa, l + 9));
+    grad.addColorStop(0, hslStr(h, sa, l + 11));
     grad.addColorStop(0.55, hslStr(h, sa, l));
-    grad.addColorStop(1, hslStr(h, sa, Math.max(6, l - 12)));
+    grad.addColorStop(1, hslStr(h, sa, Math.max(5, l - 11)));
     path();
     g.fillStyle = grad;
     g.fill();
-    // 御影石風の斑点と上面のハイライト(石の形でクリップ)
+    // 破断面のファセット(重心と辺で作る三角形に明暗を差す)
     g.save();
     path();
     g.clip();
-    for (let i = 0; i < 90; i++) {
-      const dl = rnd(-15, 15);
-      g.fillStyle = `hsla(${h},${sa}%,${clamp(l + dl, 5, 95)}%,${rnd(0.12, 0.3).toFixed(2)})`;
-      g.fillRect(cx + rnd(-r, r) * ex, cy + rnd(-r, r), rnd(0.7, 1.8), rnd(0.7, 1.8));
+    const f0 = irnd(0, n - 1);
+    const facets = [[f0, 'rgba(255,255,255,0.12)'], [(f0 + 2) % n, 'rgba(0,0,0,0.22)']];
+    for (const [fi, col] of facets) {
+      g.beginPath();
+      g.moveTo(cx + rnd(-2, 2), cy + rnd(-2, 2));
+      g.lineTo(pts[fi][0], pts[fi][1]);
+      g.lineTo(pts[(fi + 1) % n][0], pts[(fi + 1) % n][1]);
+      g.closePath();
+      g.fillStyle = col;
+      g.fill();
     }
-    g.beginPath();
-    g.ellipse(cx - r * 0.25, cy - r * 0.3, r * 0.55 * ex, r * 0.4, rot, 0, TAU);
-    g.fillStyle = 'rgba(255,255,255,0.10)';
-    g.fill();
+    // 岩肌の粒
+    for (let i = 0; i < 60; i++) {
+      const dl = rnd(-13, 13);
+      g.fillStyle = `hsla(${h},${sa}%,${clamp(l + dl, 4, 90)}%,${rnd(0.12, 0.28).toFixed(2)})`;
+      g.fillRect(cx + rnd(-r, r) * ex, cy + rnd(-r, r), rnd(0.7, 1.6), rnd(0.7, 1.6));
+    }
     g.restore();
     // 縁を締める
     path();
-    g.strokeStyle = 'rgba(18,20,24,0.35)';
-    g.lineWidth = 1.6;
+    g.strokeStyle = 'rgba(8,10,12,0.5)';
+    g.lineWidth = 1.3;
     g.stroke();
     stoneSprites.push(c);
   }
@@ -507,16 +511,16 @@ function buildGravel() {
     g.fill();
   }
 
-  const cell = 14;
+  const cell = 10;   // 細かめの砕石
   const cols = Math.ceil(gravelCssW / cell) + 2;
   const rows = Math.ceil(gravelCssH / cell) + 2;
   for (let j = 0; j < rows; j++) {
     for (let i = 0; i < cols; i++) {
-      const x = (i - 0.5) * cell + rnd(-4, 4);
-      const y = (j - 0.5) * cell + rnd(-4, 4);
+      const x = (i - 0.5) * cell + rnd(-3, 3);
+      const y = (j - 0.5) * cell + rnd(-3, 3);
       const spr = stoneSprites[irnd(0, stoneSprites.length - 1)];
-      const big = Math.random() < 0.035;
-      const sc = big ? rnd(0.55, 0.85) : rnd(0.27, 0.42);
+      const big = Math.random() < 0.025;
+      const sc = big ? rnd(0.42, 0.6) : rnd(0.2, 0.32);
       // 影(土に落ちる影なので暖色寄り)
       g.beginPath();
       g.ellipse(x + 1.3, y + 1.8, STONE_R * sc * 1.1, STONE_R * sc * 0.95, 0, 0, TAU);
