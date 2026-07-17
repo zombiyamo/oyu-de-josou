@@ -381,22 +381,22 @@ const WEED_TYPES = {
     name: '若草', unlockAt: 0,
     hue: 97, sat: 52, light: 34,
     scaldThreshold: 0.22, witherDur: 20,
-    leafCount: [8, 13], leafLen: [16, 33], leafWidth: [1.8, 3],
-    weight: 0.18
+    leafCount: [10, 16], leafLen: [16, 33], leafWidth: [1.8, 3],
+    weight: 0.2
   },
   runner: {
     name: 'メヒシバ', unlockAt: 0,
     hue: 92, sat: 46, light: 33,
     scaldThreshold: 0.28, witherDur: 26,
-    leafCount: [3, 6], leafLen: [24, 40], leafWidth: [2.2, 3.2],
-    weight: 0.22
+    leafCount: [4, 7], leafLen: [24, 40], leafWidth: [2.2, 3.2],
+    weight: 0.24
   },
   katabami: {
     name: 'カタバミ', unlockAt: 0,
     hue: 88, sat: 52, light: 36,
     scaldThreshold: 0.3, witherDur: 24,
-    leafCount: [4, 7], leafLen: [12, 20], leafWidth: [8, 11],
-    weight: 0.17
+    leafCount: [6, 9], leafLen: [12, 20], leafWidth: [8, 11],
+    weight: 0.19
   },
   rosette: {
     name: 'タンポポ', unlockAt: 10,
@@ -409,8 +409,8 @@ const WEED_TYPES = {
     name: 'シロツメクサ', unlockAt: 25,
     hue: 128, sat: 46, light: 28,
     scaldThreshold: 0.35, witherDur: 30,
-    leafCount: [6, 10], leafLen: [11, 17], leafWidth: [9, 13],
-    weight: 0.13
+    leafCount: [8, 12], leafLen: [11, 17], leafWidth: [9, 13],
+    weight: 0.15
   },
   oobako: {
     name: 'オオバコ', unlockAt: 45,
@@ -444,7 +444,7 @@ const WEED_TYPES = {
     name: 'ゼニゴケ', unlockAt: 190,
     hue: 85, sat: 50, light: 30,
     scaldThreshold: 0.18, witherDur: 15,
-    leafCount: [5, 8], leafLen: [10, 18], leafWidth: [7, 11],
+    leafCount: [6, 9], leafLen: [10, 18], leafWidth: [7, 11],
     weight: 0.09
   },
   tsuyukusa: {
@@ -503,7 +503,7 @@ function makeWeed(x, y, typeKey, opts = {}) {
   return {
     x, y, type: typeKey, leaves,
     // 草は成長しない。生えた時から完成サイズで、現れるときだけふわっとフェードイン
-    size: opts.size !== undefined ? opts.size : rnd(0.55, 1.05),
+    size: opts.size !== undefined ? opts.size : rnd(0.75, 1.2),
     age: opts.size !== undefined ? 10 : 0,   // サイズ指定なし=新しく生えた草だけ演出する
     scald: 0, visualScald: 0, wither: 0,
     crumbleTimer: 0, removing: false, rootCooked: false,
@@ -522,11 +522,11 @@ function makeWeed(x, y, typeKey, opts = {}) {
   };
 }
 
-const MAX_WEEDS = 90;   // 描画負荷の上限
+const MAX_WEEDS = 170;   // 本数の上限(静的レイヤーのキャッシュがあるので多くても軽い)
 
 function weedTargetCount() {
-  // W,Hはワールド座標(ズーム後の見える範囲)
-  return clamp(Math.round((W * H) / 3800), 20, 72);
+  // W,Hはワールド座標(ズーム後の見える範囲)。画面の7割くらいが草になる密度
+  return clamp(Math.round((W * H) / 1700), 30, 140);
 }
 
 function spawnWeed(opts = {}) {
@@ -562,7 +562,7 @@ function spawnWeed(opts = {}) {
         if (d2 < 10 * 10) { ok = false; break; }
         if (d2 < 24 * 24) close++;
       }
-      if (ok && close > 6) ok = false;   // 1点に積み重なりすぎない
+      if (ok && close > 10) ok = false;   // 1点に積み重なりすぎない
     }
     if (ok || (opts.x !== undefined && attempt === 11)) {
       // 指定座標スポーン(根からの復活)は最終的に必ず画面内で成立させる
@@ -592,11 +592,11 @@ function initGarden() {
       tries++;
     } while (tries < 20 && weeds.some(w => (w.x - sx) ** 2 + (w.y - sy) ** 2 < 110 * 110));
     const before = weeds.length;
-    spawnWeed({ x: sx, y: sy, size: rnd(0.6, 1.05) });
+    spawnWeed({ x: sx, y: sy, size: rnd(0.8, 1.2) });
     for (let i = 0; i < perColony; i++) {
       const colony = weeds.slice(before);
       if (!colony.length) break;
-      spawnWeed({ near: colony[irnd(0, colony.length - 1)], size: rnd(0.5, 1.05) });
+      spawnWeed({ near: colony[irnd(0, colony.length - 1)], size: rnd(0.7, 1.2) });
     }
   }
 }
@@ -757,21 +757,6 @@ function drawWeed(w, time) {
           ctx.rotate(leaf.curve * 0.45);
           const hFade = 1 - lw * 0.5;
           const bodyL = 11;
-          // 全周にふわっと広がる細かい毛(先に敷く)
-          ctx.strokeStyle = `hsla(60,40%,${(62 - lw * 16).toFixed(0)}%,${(0.32 * hFade).toFixed(2)})`;
-          ctx.lineWidth = 0.6;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          for (let k = 0; k < 26; k++) {
-            const tp = k / 25;
-            const px = -bodyL + tp * (bodyL + 2);
-            const side = k % 2 ? 1 : -1;
-            const wob = Math.sin(k * 12.99 + w.swayPhase * 5);
-            const by = side * (2.1 - tp * 0.6);
-            ctx.moveTo(px, by * 0.35);
-            ctx.lineTo(px + 1.4 + wob * 0.6, by + side * (1.5 + Math.abs(wob) * 1.1));
-          }
-          ctx.stroke();
           // なめらかなカプセル形の穂本体
           ctx.fillStyle = `hsla(62,42%,${(58 - lw * 16).toFixed(0)}%,${(0.9 * hFade).toFixed(2)})`;
           ctx.beginPath();
@@ -1655,7 +1640,7 @@ function update(dt, time) {
     day = newDay;
     // 一晩経つとまた生えてくる(放置しても庭が飽和しない程度に)
     if (weeds.length < Math.min(weedTargetCount() * 1.2, MAX_WEEDS)) {
-      const n = irnd(1, 2);
+      const n = irnd(2, 4);
       for (let i = 0; i < n; i++) {
         if (weeds.length && Math.random() < 0.8) {
           spawnWeed({ near: weeds[irnd(0, weeds.length - 1)] });
@@ -1670,9 +1655,9 @@ function update(dt, time) {
   // 自然発生
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    spawnTimer = rnd(2.5, 6);
+    spawnTimer = rnd(0.8, 2.0);
     const target = weedTargetCount();
-    if (weeds.length < target && Math.random() < 1 - weeds.length / target) {
+    if (weeds.length < target && Math.random() < 1.15 - weeds.length / target) {
       // 群生しがち: 多くは既存の株の近くから生えてくる
       if (weeds.length && Math.random() < 0.8) {
         spawnWeed({ near: weeds[irnd(0, weeds.length - 1)] });
@@ -1809,6 +1794,40 @@ function update(dt, time) {
 }
 
 /* ---------------- 描画 ---------------- */
+/* 見た目が変化しない草(大半)はオフスクリーンにキャッシュして、
+   毎フレームは「動いている草」だけを描く。これで数百本でも軽い。 */
+let weedLayer = null, weedLayerCtx = null, weedLayerDirty = true;
+
+function isDynamicWeed(w) {
+  if (w.removing || w.age < 2.4) return true;   // 崩れ中・生えたてのフェードイン中
+  if (w.wither >= 1) return false;              // 枯れ草は見た目が固定
+  return w.wither > 0 || w.scald > 0.004 || w.visualScald > 0.004;
+}
+
+function rebuildWeedLayer() {
+  const pw = Math.max(1, Math.round(W * RES));
+  const ph = Math.max(1, Math.round(H * RES));
+  if (!weedLayer || weedLayer.width !== pw || weedLayer.height !== ph) {
+    weedLayer = document.createElement('canvas');
+    weedLayer.width = pw;
+    weedLayer.height = ph;
+    weedLayerCtx = weedLayer.getContext('2d');
+  }
+  weedLayerCtx.setTransform(1, 0, 0, 1, 0, 0);
+  weedLayerCtx.clearRect(0, 0, pw, ph);
+  weedLayerCtx.setTransform(RES, 0, 0, RES, 0, 0);
+  const mainCtx = ctx;
+  ctx = weedLayerCtx;
+  try {
+    for (const w of weeds) {
+      if (!isDynamicWeed(w)) drawWeed(w, 0);
+    }
+  } finally {
+    ctx = mainCtx;
+  }
+  weedLayerDirty = false;
+}
+
 function render(time) {
   drawGravel();   // 不透明の全面描画なのでclearRectは不要
   if (wetActive) {
@@ -1820,7 +1839,20 @@ function render(time) {
 
   // 雑草(手前が上に重なるようyでソート)
   weeds.sort((a, b) => a.y - b.y);
-  for (const w of weeds) drawWeed(w, time);
+  for (const w of weeds) {
+    const dyn = isDynamicWeed(w);
+    if (w._dyn !== dyn) { w._dyn = dyn; weedLayerDirty = true; }
+  }
+  if (weedLayerDirty ||
+      !weedLayer ||
+      weedLayer.width !== Math.max(1, Math.round(W * RES)) ||
+      weedLayer.height !== Math.max(1, Math.round(H * RES))) {
+    rebuildWeedLayer();
+  }
+  ctx.drawImage(weedLayer, 0, 0, W, H);
+  for (const w of weeds) {
+    if (w._dyn) drawWeed(w, time);
+  }
 
   drawParticles();
   if (pour.active) drawKettle(time);
@@ -1863,6 +1895,7 @@ function resize() {
   canvas.style.height = window.innerHeight + 'px';
   ctx.setTransform(RES, 0, 0, RES, 0, 0);
   buildVignette();
+  weedLayerDirty = true;
   if (oldW > 0 && oldH > 0) {
     const fx = W / oldW, fy = H / oldH;
     for (const w of weeds) { w.x *= fx; w.y *= fy; }
