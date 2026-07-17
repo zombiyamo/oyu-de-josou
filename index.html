@@ -395,7 +395,8 @@ function makeWeed(x, y, typeKey, opts = {}) {
   }
   return {
     x, y, type: typeKey, leaves,
-    size: opts.size !== undefined ? opts.size : 0.06,
+    size: opts.size !== undefined ? opts.size : 0.02,
+    age: opts.size !== undefined && opts.size > 0.2 ? 10 : 0,   // 新芽だけ発芽演出をする
     maxSize: rnd(0.9, 1.15),
     growDur: t.growDur * (opts.regrown ? 0.55 : 1) * rnd(0.85, 1.2),
     scald: 0, visualScald: 0, wither: 0,
@@ -412,11 +413,11 @@ function makeWeed(x, y, typeKey, opts = {}) {
   };
 }
 
-const MAX_WEEDS = 72;   // 描画負荷の上限
+const MAX_WEEDS = 90;   // 描画負荷の上限
 
 function weedTargetCount() {
   // W,Hはワールド座標(ズーム後の見える範囲)
-  return clamp(Math.round((W * H) / 4800), 18, 64);
+  return clamp(Math.round((W * H) / 3800), 20, 72);
 }
 
 function spawnWeed(opts = {}) {
@@ -435,7 +436,7 @@ function spawnWeed(opts = {}) {
       const d = opts.near.type === 'runner' ? rnd(18, 46) : rnd(9, 34);
       x = opts.near.x + Math.cos(a) * d;
       y = opts.near.y + Math.sin(a) * d;
-      if (!type && Math.random() < 0.75) type = opts.near.type;
+      if (!type && Math.random() < 0.85) type = opts.near.type;
     } else {
       x = rnd(margin, W - margin);
       y = rnd(topMargin, H - margin);
@@ -446,8 +447,8 @@ function spawnWeed(opts = {}) {
       for (const w of weeds) {
         const dx = w.x - x, dy = w.y - y;
         const d2 = dx * dx + dy * dy;
-        if (d2 < 12 * 12) { ok = false; break; }
-        if (d2 < 26 * 26) close++;
+        if (d2 < 10 * 10) { ok = false; break; }
+        if (d2 < 24 * 24) close++;
       }
       if (ok && close > 6) ok = false;   // 1点に積み重なりすぎない
     }
@@ -455,7 +456,9 @@ function spawnWeed(opts = {}) {
       // 指定座標スポーン(根からの復活)は最終的に必ず画面内で成立させる
       const sx = clamp(x, margin, Math.max(margin, W - margin));
       const sy = clamp(y, topMargin, Math.max(topMargin, H - margin));
-      weeds.push(makeWeed(sx, sy, type || pickWeedType(), opts));
+      const nw = makeWeed(sx, sy, type || pickWeedType(), opts);
+      weeds.push(nw);
+      if (nw.age === 0) emitSoil(nw.x, nw.y);   // 発芽時に土がパラッと動く
       return true;
     }
   }
@@ -466,14 +469,25 @@ function initGarden() {
   weeds.length = 0;
   roots.length = 0;
   const target = weedTargetCount();
-  // 群れの「種」を何箇所かにまき、その周りを茂らせてマット状のパッチを作る
-  const seeds = Math.max(4, Math.round(target / 8));
-  for (let i = 0; i < seeds; i++) spawnWeed({ size: rnd(0.5, 1) });
-  const rest = Math.round(target * 0.75);
-  for (let i = 0; i < rest && weeds.length; i++) {
-    spawnWeed({ near: weeds[irnd(0, weeds.length - 1)], size: rnd(0.35, 1) });
+  // 互いに離れた場所に群れの「種」をまき、それぞれの群れを独立に茂らせる
+  const seeds = Math.max(3, Math.round(target / 12));
+  const perColony = Math.round((target * 0.85) / seeds);
+  for (let s = 0; s < seeds; s++) {
+    let sx = 0, sy = 0, tries = 0;
+    do {
+      sx = rnd(40, W - 40);
+      sy = rnd(60, H - 30);
+      tries++;
+    } while (tries < 20 && weeds.some(w => (w.x - sx) ** 2 + (w.y - sy) ** 2 < 90 * 90));
+    const before = weeds.length;
+    spawnWeed({ x: sx, y: sy, size: rnd(0.5, 1) });
+    for (let i = 0; i < perColony; i++) {
+      const colony = weeds.slice(before);
+      if (!colony.length) break;
+      spawnWeed({ near: colony[irnd(0, colony.length - 1)], size: rnd(0.35, 1) });
+    }
   }
-  for (let i = 0; i < 3; i++) spawnWeed({ size: rnd(0.08, 0.2) });
+  for (let i = 0; i < 3; i++) spawnWeed({ size: rnd(0.22, 0.3) });
 }
 
 /* ---- 葉の色: 健康 → 湯がかかって色変わり → 黄 → 茶 → 枯れ色 ---- */
@@ -588,21 +602,25 @@ function drawWeed(w, time) {
   ctx.fillStyle = isRunner ? 'rgba(10,10,14,0.1)' : 'rgba(10,10,14,0.2)';
   ctx.fill();
 
-  const shownLeaves = Math.max(2, Math.ceil(w.leaves.length * clamp(w.size * 1.4, 0, 1)));
-
-  const dyingAlpha = w.crumbleTimer > 0 ? clamp(1 - w.crumbleTimer / CRUMBLE_FADE, 0, 1) : 1;
-  for (let i = 0; i < shownLeaves; i++) {
+  // 生えたての芽はふわっと現れる
+  const emerge = clamp(w.age / 1.2, 0, 1);
+  const dyingAlpha = (w.crumbleTimer > 0 ? clamp(1 - w.crumbleTimer / CRUMBLE_FADE, 0, 1) : 1) *
+                     (0.25 + 0.75 * emerge);
+  for (let i = 0; i < w.leaves.length; i++) {
+    // 葉は1枚ずつ順番に、小さく生えてから育つ
+    const lp = clamp(w.size * 1.4 * w.leaves.length - i, 0, 1);
+    if (lp <= 0) break;   // 後ろの葉ほど遅く生えるので、以降はまだ芽吹いていない
     const leaf = w.leaves[i];
     const lw = clamp(w.wither * leaf.heatBias, 0, 1);   // 葉ごとの枯れ具合
-    const len = leaf.len * w.size * (1 - 0.28 * lw);
-    const width = leaf.width * clamp(w.size * 1.3, 0.3, 1) * (1 - 0.5 * lw);
+    const len = leaf.len * w.size * (1 - 0.28 * lw) * (0.35 + 0.65 * lp);
+    const width = leaf.width * clamp(w.size * 1.3, 0.3, 1) * (1 - 0.5 * lw) * (0.5 + 0.5 * lp);
     // 枯れてくると葉の向きが乱れて縮れる
     const shrivel = Math.sin(i * 7.3 + w.swayPhase * 3) * 0.5 * lw;
     const ang = leaf.angle + shrivel;
     ctx.save();
     ctx.translate(w.x, w.y);
     ctx.rotate(ang);
-    ctx.globalAlpha = dyingAlpha * (1 - 0.15 * lw);
+    ctx.globalAlpha = dyingAlpha * (1 - 0.15 * lw) * (0.3 + 0.7 * lp);
     const col = leafHSL(t, w.visualScald * leaf.heatBias, lw, leaf.shade);
     ctx.fillStyle = hslStr(col[0], col[1], col[2]);
     const hiFade = 1 - lw * 0.7;        // 枯れるほどツヤ・葉脈が消える
@@ -788,6 +806,16 @@ function emitSteam(x, y, rate, dt) {
       x: x + rnd(-9, 9), y: y + rnd(-6, 6),
       vx: rnd(-7, 7), vy: rnd(-32, -17),
       r: rnd(8, 15), life: rnd(1.4, 2.6), age: 0, drift: rnd(TAU)
+    });
+  }
+}
+function emitSoil(x, y) {
+  for (let i = 0; i < 6; i++) {
+    const a = rnd(TAU);
+    flakes.push({
+      x: x + Math.cos(a) * 2, y: y + Math.sin(a) * 2,
+      vx: Math.cos(a) * rnd(4, 14), vy: Math.sin(a) * rnd(4, 14) - 3,
+      r: rnd(0.8, 1.8), life: rnd(0.5, 0.9), age: 0
     });
   }
 }
@@ -1267,10 +1295,10 @@ function update(dt, time) {
     if (weeds.length < Math.min(weedTargetCount() * 1.2, MAX_WEEDS)) {
       const n = irnd(1, 2);
       for (let i = 0; i < n; i++) {
-        if (weeds.length && Math.random() < 0.6) {
-          spawnWeed({ near: weeds[irnd(0, weeds.length - 1)], size: 0.06 });
+        if (weeds.length && Math.random() < 0.8) {
+          spawnWeed({ near: weeds[irnd(0, weeds.length - 1)] });
         } else {
-          spawnWeed({ size: 0.06 });
+          spawnWeed({});
         }
       }
     }
@@ -1284,10 +1312,10 @@ function update(dt, time) {
     const target = weedTargetCount();
     if (weeds.length < target && Math.random() < 1 - weeds.length / target) {
       // 群生しがち: 多くは既存の株の近くから生えてくる
-      if (weeds.length && Math.random() < 0.65) {
-        spawnWeed({ near: weeds[irnd(0, weeds.length - 1)], size: 0.06 });
+      if (weeds.length && Math.random() < 0.8) {
+        spawnWeed({ near: weeds[irnd(0, weeds.length - 1)] });
       } else {
-        spawnWeed({ size: 0.06 });
+        spawnWeed({});
       }
     }
   }
@@ -1358,6 +1386,7 @@ function update(dt, time) {
   for (let i = weeds.length - 1; i >= 0; i--) {
     const w = weeds[i];
     const t = WEED_TYPES[w.type];
+    if (w.age < 10) w.age += dt;
 
     // 見た目の色変化はワンテンポ遅れてついてくる
     w.visualScald += (clamp(w.scald, 0, 1) - w.visualScald) * Math.min(1, dt * 1.6);
