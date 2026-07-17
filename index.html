@@ -313,6 +313,7 @@ function fadeWet(dt) {
 /* ---------------- 雑草 ---------------- */
 /*
  * wakakusa : 若草(細い葉のイネ科)。すぐ枯れる。
+ * runner   : メヒシバ系。細い匍匐茎が地を這い、小さな葉がつながって広がる。
  * rosette  : タンポポ系。ギザギザの葉。中くらいのしぶとさ。
  * oobako   : オオバコ。丸く広い葉に平行脈。踏まれ強くやや頑丈。
  * katabami : カタバミ。クローバー風の三つ葉+黄色い花。
@@ -324,37 +325,43 @@ const WEED_TYPES = {
     hue: 97, sat: 52, light: 34,
     scaldThreshold: 0.22, witherDur: 20, growDur: 55,
     leafCount: [8, 13], leafLen: [16, 33], leafWidth: [1.8, 3],
-    weight: 0.26
+    weight: 0.2
+  },
+  runner: {
+    hue: 92, sat: 46, light: 33,
+    scaldThreshold: 0.28, witherDur: 26, growDur: 50,
+    leafCount: [3, 6], leafLen: [26, 48], leafWidth: [2.2, 3.2],
+    weight: 0.22
   },
   rosette: {
     hue: 118, sat: 46, light: 27,
     scaldThreshold: 0.45, witherDur: 38, growDur: 85,
     leafCount: [7, 10], leafLen: [20, 36], leafWidth: [8, 13],
-    weight: 0.17
+    weight: 0.13
   },
   oobako: {
     hue: 124, sat: 42, light: 30,
     scaldThreshold: 0.5, witherDur: 40, growDur: 90,
     leafCount: [5, 7], leafLen: [16, 30], leafWidth: [9, 14],
-    weight: 0.12
+    weight: 0.09
   },
   katabami: {
     hue: 88, sat: 52, light: 36,
     scaldThreshold: 0.3, witherDur: 24, growDur: 60,
     leafCount: [4, 7], leafLen: [12, 20], leafWidth: [8, 11],
-    weight: 0.18
+    weight: 0.15
   },
   sugina: {
     hue: 104, sat: 36, light: 31,
     scaldThreshold: 0.55, witherDur: 45, growDur: 75,
     leafCount: [10, 16], leafLen: [14, 26], leafWidth: [1.1, 1.7],
-    weight: 0.12
+    weight: 0.09
   },
   dokudami: {
     hue: 136, sat: 44, light: 21,
     scaldThreshold: 0.72, witherDur: 60, growDur: 105,
     leafCount: [5, 8], leafLen: [16, 25], leafWidth: [12, 18],
-    weight: 0.15
+    weight: 0.12
   }
 };
 
@@ -422,8 +429,10 @@ function spawnWeed(opts = {}) {
       x = opts.x + rnd(-8, 8);
       y = opts.y + rnd(-8, 8);
     } else if (opts.near) {
-      // 群生: 既存の株のそばに、多くは同じ種類が生える
-      const a = rnd(TAU), d = rnd(9, 34);
+      // 群生: 既存の株のそばに、多くは同じ種類が生える。
+      // 匍匐系は茎の先で根付くので、少し離れた場所に連なっていく
+      const a = rnd(TAU);
+      const d = opts.near.type === 'runner' ? rnd(18, 46) : rnd(9, 34);
       x = opts.near.x + Math.cos(a) * d;
       y = opts.near.y + Math.sin(a) * d;
       if (!type && Math.random() < 0.75) type = opts.near.type;
@@ -572,10 +581,11 @@ function drawWeed(w, time) {
   const r = w.radius();
   if (r < 0.5) return;
 
-  // 影
+  // 影(這って広がる草は面が薄いので影も控えめに)
+  const isRunner = w.type === 'runner';
   ctx.beginPath();
-  ctx.ellipse(w.x + 2, w.y + 2.5, r * 0.75, r * 0.55, 0, 0, TAU);
-  ctx.fillStyle = 'rgba(10,10,14,0.2)';
+  ctx.ellipse(w.x + 2, w.y + 2.5, r * (isRunner ? 0.5 : 0.75), r * (isRunner ? 0.36 : 0.55), 0, 0, TAU);
+  ctx.fillStyle = isRunner ? 'rgba(10,10,14,0.1)' : 'rgba(10,10,14,0.2)';
   ctx.fill();
 
   const shownLeaves = Math.max(2, Math.ceil(w.leaves.length * clamp(w.size * 1.4, 0, 1)));
@@ -631,6 +641,31 @@ function drawWeed(w, time) {
         ctx.stroke();
         break;
       }
+      case 'runner': {
+        // 匍匐茎が地を這い、小さな葉が交互につく(メヒシバ風)
+        const bc = leaf.curve;
+        ctx.strokeStyle = hslStr(col[0] - 14, Math.max(0, col[1] - 8), Math.max(8, col[2] - 4));
+        ctx.lineWidth = 0.9;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(2, 0);
+        ctx.quadraticCurveTo(len * 0.5, bc * len * 0.5, len, bc * len * 0.8);
+        ctx.stroke();
+        const nB = Math.max(4, Math.floor(len / 5));
+        for (let b = 0; b < nB; b++) {
+          const tt = 0.14 + (b / nB) * 0.86;
+          // 匍匐茎(2次ベジェ)上の位置
+          const qx = (1 - tt) * (1 - tt) * 2 + 2 * (1 - tt) * tt * (len * 0.5) + tt * tt * len;
+          const qy = 2 * (1 - tt) * tt * (bc * len * 0.5) + tt * tt * (bc * len * 0.8);
+          const side = b % 2 ? 1 : -1;
+          ctx.save();
+          ctx.translate(qx, qy);
+          ctx.rotate(side * (0.7 + bc * 0.4) + Math.sin(b * 12.99 + w.swayPhase * 7) * 0.25);
+          drawBlade(ctx, width * (3.4 + (b === nB - 1 ? 1.4 : 0)), width * 0.75, 0.25 * side);
+          ctx.restore();
+        }
+        break;
+      }
       case 'sugina': {
         // 針のような葉と小さな節
         ctx.strokeStyle = ctx.fillStyle;
@@ -679,7 +714,7 @@ function drawWeed(w, time) {
   }
 
   // 株元(葉が集まる中心が締まって見える)
-  if (w.type !== 'dokudami' && w.type !== 'katabami' && w.size > 0.15) {
+  if (w.type !== 'dokudami' && w.type !== 'katabami' && w.type !== 'runner' && w.size > 0.15) {
     ctx.globalAlpha = dyingAlpha;
     ctx.beginPath();
     ctx.arc(w.x, w.y, 2.2 * w.size + 0.4, 0, TAU);
@@ -994,8 +1029,8 @@ function initAudio() {
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   audio.noiseBuf = buf;
 
-  // --- お湯を注ぐ音: 3帯域のノイズ + 乱流ゆらぎ ---
-  // 低域=水が地面を打つ量感 / 中域=バシャバシャの本体 / 高域=熱湯のシューという飛沫
+  // --- お湯を注ぐ音: 2帯域のノイズ + 乱流ゆらぎ ---
+  // 低域=水が地面を打つ量感 / 中域=バシャバシャの本体
   const mkNoise = (rate) => {
     const s = c.createBufferSource();
     s.buffer = buf; s.loop = true;
@@ -1007,13 +1042,10 @@ function initAudio() {
   lpLow.type = 'lowpass'; lpLow.frequency.value = 420;
   const bpMid = c.createBiquadFilter();
   bpMid.type = 'bandpass'; bpMid.frequency.value = 1100; bpMid.Q.value = 0.7;
-  const hpHi = c.createBiquadFilter();
-  hpHi.type = 'highpass'; hpHi.frequency.value = 3600;
-  const gLow = c.createGain(), gMid = c.createGain(), gHi = c.createGain();
-  gLow.gain.value = 0; gMid.gain.value = 0; gHi.gain.value = 0;
+  const gLow = c.createGain(), gMid = c.createGain();
+  gLow.gain.value = 0; gMid.gain.value = 0;
   src.connect(lpLow); lpLow.connect(gLow); gLow.connect(audio.master);
   src.connect(bpMid); bpMid.connect(gMid); gMid.connect(audio.master);
-  src.connect(hpHi); hpHi.connect(gHi); gHi.connect(audio.master);
   src.start();
   // 乱流: 超低速ノイズで中域の音量を揺らし、一定のシャーではなくバシャバシャ感を出す
   const turb = mkNoise(0.05);
@@ -1023,7 +1055,7 @@ function initAudio() {
   turbG.gain.value = 0;
   turb.connect(turbLp); turbLp.connect(turbG); turbG.connect(gMid.gain);
   turb.start();
-  audio.pour = { gLow, gMid, gHi, bpMid, turbG };
+  audio.pour = { gLow, gMid, bpMid, turbG };
 
   // --- そよ風(ごく小さく) ---
   const wsrc = c.createBufferSource();
@@ -1069,7 +1101,6 @@ function setPouringSound(on) {
   if (on) {
     set(P.gLow.gain, 0.06, 0.05);
     set(P.gMid.gain, 0.065, 0.04);
-    set(P.gHi.gain, 0.03, 0.09);
     set(P.turbG.gain, 0.038, 0.05);
     // 注ぎ始めの「バシャッ」という立ち上がり
     const burst = c.createBufferSource();
@@ -1085,8 +1116,7 @@ function setPouringSound(on) {
     burst.start(now); burst.stop(now + 0.35);
   } else {
     set(P.gLow.gain, 0, 0.09);
-    set(P.gMid.gain, 0, 0.12);
-    set(P.gHi.gain, 0, 0.35);   // 高域のシューは湯気の名残として長めに残す
+    set(P.gMid.gain, 0, 0.18);   // 少しだけ余韻を残して切る
     set(P.turbG.gain, 0, 0.1);
   }
 }
