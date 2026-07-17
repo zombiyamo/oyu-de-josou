@@ -226,7 +226,8 @@ const LOCALES = {
     dropKettle: '✨ 金のやかんが落ちた!タップで拾えます',
     dropHerb: '🧪 除草剤が落ちた!タップで拾えます',
     useKettle: '金のやかん発動!20秒間、やかんが2つに🫖🫖',
-    useHerb: '🧪 除草剤を散布!',
+    herbNames: { 1: 'コモン除草剤', 2: 'アンコモン除草剤', 3: 'レア除草剤' },
+    useHerb: (name) => `🧪 ${name}を散布!`,
     reset: '除草の記録をリセット',
     resetConfirm: '本当にリセットする?(もう一度押す)',
     resetDone: '除草の記録をリセットしました。雑草の解放も最初からです',
@@ -283,7 +284,8 @@ const LOCALES = {
     dropKettle: '✨ A golden kettle dropped! Tap to pick it up',
     dropHerb: '🧪 Weed killer dropped! Tap to pick it up',
     useKettle: 'Golden kettle! Two kettles for 20s 🫖🫖',
-    useHerb: '🧪 Weed killer sprayed!',
+    herbNames: { 1: 'Common Weed Killer', 2: 'Uncommon Weed Killer', 3: 'Rare Weed Killer' },
+    useHerb: (name) => `🧪 ${name} sprayed!`,
     reset: 'Reset weeding records',
     resetConfirm: 'Really reset? (tap again)',
     resetDone: 'Records reset. Species unlocks start over',
@@ -340,7 +342,8 @@ const LOCALES = {
     dropKettle: '✨ 掉落了金水壶!点击拾取',
     dropHerb: '🧪 掉落了除草剂!点击拾取',
     useKettle: '金水壶发动!20秒内双壶齐下🫖🫖',
-    useHerb: '🧪 除草剂喷洒!',
+    herbNames: { 1: '普通除草剂', 2: '高级除草剂', 3: '稀有除草剂' },
+    useHerb: (name) => `🧪 喷洒了${name}!`,
     reset: '重置除草记录',
     resetConfirm: '确定要重置?(再点一次)',
     resetDone: '记录已重置,品种解锁重新开始',
@@ -397,7 +400,8 @@ const LOCALES = {
     dropKettle: '✨ 황금 주전자가 떨어졌다! 탭해서 줍기',
     dropHerb: '🧪 제초제가 떨어졌다! 탭해서 줍기',
     useKettle: '황금 주전자 발동! 20초간 주전자 2개🫖🫖',
-    useHerb: '🧪 제초제 살포!',
+    herbNames: { 1: '일반 제초제', 2: '고급 제초제', 3: '희귀 제초제' },
+    useHerb: (name) => `🧪 ${name} 살포!`,
     reset: '제초 기록 초기화',
     resetConfirm: '정말 초기화할까요? (한 번 더 탭)',
     resetDone: '기록이 초기화되었습니다. 잡초 해금도 처음부터입니다',
@@ -1568,9 +1572,16 @@ let lingering = null;    // 注ぎ終わった後もしばらく湯気が立つ 
 let ringTimer = 0, wetTimer = 0;
 
 /* ---- ボーナス ---- */
-const pickups = [];        // 地面に落ちたアイテム {x, y, kind:'kettle2'|'herbicide', age}
+const pickups = [];        // 地面に落ちたアイテム {x, y, kind:'kettle2'|'herbicide', tier, age}
 let kettleBoostT = 0;      // 金のやかんの残り秒数(>0の間やかんが2つ)
-let herbicideWave = null;  // 除草剤の波 {t, cx, cy}
+let herbicideWave = null;  // 除草剤の波 {t, cx, cy, p, boost, color, id}
+let herbWaveSeq = 0;
+// 除草剤のレア度: [枯らす確率, 再生ブースト秒, ボトル色, 波の色]
+const HERB_TIERS = {
+  1: { p: 0.5, boost: 30, bottle: '#4d8f45', stroke: '#2f5e2b', glow: 'rgba(150,230,140,0.4)', ring: '160,225,140' },
+  2: { p: 0.6, boost: 45, bottle: '#3f6fa8', stroke: '#2a4a73', glow: 'rgba(140,190,240,0.45)', ring: '140,190,240' },
+  3: { p: 1.0, boost: 60, bottle: '#8a5fb8', stroke: '#5c3d80', glow: 'rgba(200,160,255,0.5)', ring: '200,160,255' }
+};
 let regrowBoostT = 0;      // 除草剤の後、自然が戻ってくる(リスポーン高速化)残り秒数
 const dropHintShown = {};  // 種類ごとの初回ドロップ案内
 
@@ -1586,13 +1597,13 @@ function pourTargets() {
   return list;
 }
 
-function spawnPickup(x, y, kind) {
+function spawnPickup(x, y, kind, tier) {
   if (pickups.length >= 3) return;
   if (pickups.some((p) => p.kind === kind)) return;   // 同じ種類は同時に1個まで
   pickups.push({
     x: clamp(x, 24, Math.max(24, W - 24)),
     y: clamp(y, 52, Math.max(52, H - 20)),
-    kind, age: 0
+    kind, tier: tier || 0, age: 0
   });
   if (!dropHintShown[kind]) {
     dropHintShown[kind] = true;
@@ -1606,8 +1617,13 @@ function activatePickup(p) {
     showToast(L.useKettle);
     unlockChime();
   } else {
-    herbicideWave = { t: 0, cx: p.x, cy: p.y };
-    showToast(L.useHerb);
+    const T = HERB_TIERS[p.tier] || HERB_TIERS[1];
+    herbicideWave = {
+      t: 0, cx: p.x, cy: p.y,
+      p: T.p, boost: T.boost, ring: T.ring,
+      id: ++herbWaveSeq
+    };
+    showToast(L.useHerb(L.herbNames[p.tier] || ''));
     spraySound();
   }
 }
@@ -2347,8 +2363,10 @@ function update(dt, time) {
         // 金のやかんは発動中に重ねてドロップしない=連鎖防止)
         if (!w.byHerbicide) {
           const r = Math.random();
-          if (r < 0.015) spawnPickup(w.x, w.y, 'herbicide');
-          else if (r < 0.045 && kettleBoostT <= 0) spawnPickup(w.x, w.y, 'kettle2');
+          if (r < 0.0015) spawnPickup(w.x, w.y, 'herbicide', 3);        // レア(全滅)
+          else if (r < 0.0065) spawnPickup(w.x, w.y, 'herbicide', 2);   // アンコモン(60%)
+          else if (r < 0.0185) spawnPickup(w.x, w.y, 'herbicide', 1);   // コモン(50%)
+          else if (r < 0.0485 && kettleBoostT <= 0) spawnPickup(w.x, w.y, 'kettle2');
         }
         // 除草数に応じて新種が解放される
         for (const key in WEED_TYPES) {
@@ -2391,20 +2409,23 @@ function update(dt, time) {
     herbicideWave.t += dt;
     const R = herbicideWave.t * 400;
     for (const w of weeds) {
-      if (w.removing) continue;
+      if (w.removing || w._herbWave === herbicideWave.id) continue;
       const dx = w.x - herbicideWave.cx, dy = w.y - herbicideWave.cy;
       if (dx * dx + dy * dy < R * R) {
-        // 除草剤は根まで枯らす。波が届いた草から順に崩れていく
-        w.wither = 1;
-        w.scald = Math.max(w.scald, 1.2);
-        w.rootCooked = true;
-        w.byHerbicide = true;
-        startCrumble(w);
+        w._herbWave = herbicideWave.id;   // 判定は波1回につき1度だけ
+        if (Math.random() < herbicideWave.p) {
+          // 当たった草は根まで枯れて崩れる。外れた草は生き残る
+          w.wither = 1;
+          w.scald = Math.max(w.scald, 1.2);
+          w.rootCooked = true;
+          w.byHerbicide = true;
+          startCrumble(w);
+        }
       }
     }
     if (R > Math.hypot(W, H)) {
+      regrowBoostT = herbicideWave.boost;   // 威力に応じた再生ブースト
       herbicideWave = null;
-      regrowBoostT = 60;   // まっさらになった庭に、しばらく勢いよく草が戻ってくる
     }
   }
   if (regrowBoostT > 0) regrowBoostT = Math.max(0, regrowBoostT - dt);
@@ -2529,17 +2550,18 @@ function render(time) {
     ctx.save();
     ctx.globalAlpha = fade;
     // ほのかな光
+    const T = p.kind === 'herbicide' ? (HERB_TIERS[p.tier] || HERB_TIERS[1]) : null;
     const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 16);
-    glow.addColorStop(0, p.kind === 'herbicide' ? 'rgba(150,230,140,0.4)' : 'rgba(255,225,130,0.45)');
+    glow.addColorStop(0, T ? T.glow : 'rgba(255,225,130,0.45)');
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(p.x, p.y, 16, 0, TAU);
     ctx.fill();
     if (p.kind === 'herbicide') {
-      // 小さな薬品ボトル
-      ctx.fillStyle = '#4d8f45';
-      ctx.strokeStyle = '#2f5e2b';
+      // 小さな薬品ボトル(レア度で色が違う)
+      ctx.fillStyle = T.bottle;
+      ctx.strokeStyle = T.stroke;
       ctx.lineWidth = 0.8;
       ctx.beginPath();
       ctx.roundRect(p.x - 4, p.y - 3, 8, 9, 2);
@@ -2583,12 +2605,12 @@ function render(time) {
 
   drawParticles();
 
-  // 除草剤の波
+  // 除草剤の波(レア度で色が違う)
   if (herbicideWave) {
     const R = herbicideWave.t * 400;
     ctx.beginPath();
     ctx.arc(herbicideWave.cx, herbicideWave.cy, R, 0, TAU);
-    ctx.strokeStyle = `rgba(160,225,140,${clamp(0.5 - herbicideWave.t * 0.22, 0, 1).toFixed(3)})`;
+    ctx.strokeStyle = `rgba(${herbicideWave.ring},${clamp(0.5 - herbicideWave.t * 0.22, 0, 1).toFixed(3)})`;
     ctx.lineWidth = 4;
     ctx.stroke();
   }
