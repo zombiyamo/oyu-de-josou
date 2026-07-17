@@ -97,7 +97,10 @@
     border: 0; border-radius: 999px; background: #5c7c4f; color: #fff;
     font-size: 15px; cursor: pointer;
   }
-  #bookGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  #bookGrid, #kettleGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  #kettleNext { font-size: 12.5px; opacity: .8; margin: -4px 0 10px; }
+  .card.pick { cursor: pointer; }
+  .card.sel { outline: 2.5px solid #5c7c4f; outline-offset: -1px; }
   .card {
     background: rgba(255,255,255,.6); border-radius: 12px;
     padding: 8px 6px; text-align: center;
@@ -127,6 +130,7 @@
   <div id="stats"><span id="day">1日目</span><span id="count">枯らした草 0本</span></div>
   <button class="hudbtn" id="helpBtn" aria-label="あそびかた">?</button>
   <button class="hudbtn" id="bookBtn" aria-label="雑草コレクション">📖</button>
+  <button class="hudbtn" id="kettleBtn" aria-label="やかんコレクション">🫖</button>
   <button class="hudbtn" id="mute" aria-label="音の切り替え">🔊</button>
 </div>
 <div id="hint" class="hide"></div>
@@ -145,6 +149,12 @@
     <h2 id="bookTitle">📖 雑草コレクション</h2>
     <div id="bookNext"></div>
     <div id="bookGrid"></div>
+  </div>
+  <div class="panel hidden" id="kettlePanel">
+    <button class="closex" data-close aria-label="閉じる">✕</button>
+    <h2 id="kettleTitle">🫖 やかんコレクション</h2>
+    <div id="kettleNext"></div>
+    <div id="kettleGrid"></div>
   </div>
   <div class="panel hidden" id="onboardPanel">
     <h2 id="obTitle"></h2>
@@ -233,6 +243,13 @@ const LOCALES = {
     resetConfirm: '本当にリセットする?(もう一度押す)',
     resetDone: '記録をリセットしました。日数・除草数・雑草の解放が最初からです',
     bookTitle: '📖 雑草コレクション',
+    kettleTitle: '🫖 やかんコレクション',
+    kettleNames: ['ステンレス', '銅のやかん', '白ホーロー', '南部鉄器', '赤ホーロー',
+                  '青ホーロー', '若草のやかん', '桜のやかん', '漆黒と金'],
+    kettleLock: (n) => `除草${n}本で解放`,
+    kettleNext: (n) => `次のやかんまで あと${n}本`,
+    kettleAll: '全てのやかんを集めました!🎉',
+    kettleUnlocked: (name) => `✨ 新しいやかん「${name}」が使えるようになった!`,
     cleared: (n) => `枯らした ${n}本`,
     unlockAt: (n) => `除草${n}本で出現`,
     unlockToast: (name) => `🌱 新しい雑草「${name}」が生えてくるようになった…`,
@@ -292,6 +309,13 @@ const LOCALES = {
     resetConfirm: 'Really reset? (tap again)',
     resetDone: 'Records reset — days, weed count, and species unlocks start over',
     bookTitle: '📖 Weed Collection',
+    kettleTitle: '🫖 Kettle Collection',
+    kettleNames: ['Stainless', 'Copper', 'White Enamel', 'Cast Iron', 'Red Enamel',
+                  'Blue Enamel', 'Spring Green', 'Sakura', 'Black & Gold'],
+    kettleLock: (n) => `Unlocks at ${n} cleared`,
+    kettleNext: (n) => `Next kettle in ${n} more`,
+    kettleAll: 'All kettles collected! 🎉',
+    kettleUnlocked: (name) => `✨ New kettle unlocked: ${name}!`,
     cleared: (n) => `Cleared: ${n}`,
     unlockAt: (n) => `Unlocks at ${n} cleared`,
     unlockToast: (name) => `🌱 A new weed has appeared: ${name}`,
@@ -351,6 +375,13 @@ const LOCALES = {
     resetConfirm: '确定要重置?(再点一次)',
     resetDone: '记录已重置:天数、除草数、品种解锁都从头开始',
     bookTitle: '📖 杂草图鉴',
+    kettleTitle: '🫖 水壶收藏',
+    kettleNames: ['不锈钢', '铜壶', '白珐琅', '铸铁壶', '红珐琅',
+                  '蓝珐琅', '嫩草绿', '樱花', '黑金'],
+    kettleLock: (n) => `除草${n}株解锁`,
+    kettleNext: (n) => `距下一个水壶还差 ${n} 株`,
+    kettleAll: '水壶已集齐!🎉',
+    kettleUnlocked: (name) => `✨ 解锁了新水壶「${name}」!`,
     cleared: (n) => `已除 ${n} 株`,
     unlockAt: (n) => `除草${n}株后出现`,
     unlockToast: (name) => `🌱 新杂草「${name}」开始出现了…`,
@@ -410,6 +441,13 @@ const LOCALES = {
     resetConfirm: '정말 초기화할까요? (한 번 더 탭)',
     resetDone: '기록이 초기화되었습니다. 일수·제초 수·잡초 해금이 처음부터입니다',
     bookTitle: '📖 잡초 도감',
+    kettleTitle: '🫖 주전자 컬렉션',
+    kettleNames: ['스테인리스', '구리 주전자', '흰 법랑', '무쇠 주전자', '빨간 법랑',
+                  '파란 법랑', '연둣빛 주전자', '벚꽃 주전자', '흑금'],
+    kettleLock: (n) => `제초 ${n}개 달성 시 해금`,
+    kettleNext: (n) => `다음 주전자까지 앞으로 ${n}개`,
+    kettleAll: '주전자를 모두 모았습니다! 🎉',
+    kettleUnlocked: (name) => `✨ 새 주전자 '${name}' 해금!`,
     cleared: (n) => `제거 ${n}개`,
     unlockAt: (n) => `제초 ${n}개 달성 시 등장`,
     unlockToast: (name) => `🌱 새로운 잡초 '${name}'이(가) 자라나기 시작했다…`,
@@ -450,6 +488,7 @@ function applyLocale() {
   document.getElementById('startBtn').textContent = L.ok;
   document.getElementById('resetBtn').textContent = L.reset;
   document.getElementById('bookTitle').textContent = L.bookTitle;
+  document.getElementById('kettleTitle').textContent = L.kettleTitle;
   document.getElementById('obTitle').textContent = L.obTitle;
   document.getElementById('obSteps').innerHTML = L.obSteps
     .map(([ic, s]) => `<div class="obstep"><span class="ic">${ic}</span><span>${s}</span></div>`)
@@ -1639,19 +1678,41 @@ function updatePourTarget() {
   pour.ty = clamp(pour.y + 40, 30, Math.max(30, H - 12));
 }
 
-function drawKettleAt(kx, ky, tx, ty, time, golden) {
-  // golden=true は金のやかん(ボーナス)
-  const C = golden ? {
-    spout: ['#f5e2a0', '#dcbc62', '#b3924a'],
-    body: ['#f8ecc2', '#e0c470', '#b3924a'],
-    lid: ['#faf0cd', '#cfae57'],
-    stroke: '#8a6f2f', knob: '#6b5220', handle: 'rgba(90,70,30,0.9)'
-  } : {
-    spout: ['#d9dbde', '#aeb2b8', '#84888e'],
-    body: ['#eceef0', '#b9bdc2', '#83878d'],
-    lid: ['#f2f4f6', '#9da1a7'],
-    stroke: '#6b6f75', knob: '#3c3f44', handle: 'rgba(45,42,40,0.9)'
-  };
+// ボーナスの金のやかん(相棒用。きせかえとは別枠)
+const KETTLE_GOLD = {
+  spout: ['#f5e2a0', '#dcbc62', '#b3924a'],
+  body: ['#f8ecc2', '#e0c470', '#b3924a'],
+  lid: ['#faf0cd', '#cfae57'],
+  stroke: '#8a6f2f', knob: '#6b5220', handle: 'rgba(90,70,30,0.9)'
+};
+// きせかえスキン。i番目は除草 i*150本 で解放
+const KETTLE_SKINS = [
+  { spout: ['#d9dbde', '#aeb2b8', '#84888e'], body: ['#eceef0', '#b9bdc2', '#83878d'],
+    lid: ['#f2f4f6', '#9da1a7'], stroke: '#6b6f75', knob: '#3c3f44', handle: 'rgba(45,42,40,0.9)' },
+  { spout: ['#e8b48a', '#c98850', '#96613a'], body: ['#f0c096', '#d09055', '#9a6238'],
+    lid: ['#f2cfa8', '#b87e4a'], stroke: '#7a4e2c', knob: '#5a3a20', handle: 'rgba(70,45,25,0.9)' },
+  { spout: ['#ffffff', '#eeeeea', '#c4c4be'], body: ['#ffffff', '#f0f0ec', '#c8c8c2'],
+    lid: ['#ffffff', '#d8d8d2'], stroke: '#9a9a94', knob: '#c0392b', handle: 'rgba(60,60,58,0.9)' },
+  { spout: ['#5a5a5c', '#3e3e40', '#28282a'], body: ['#5a5a5c', '#3a3a3c', '#242426'],
+    lid: ['#4a4a4c', '#2a2a2c'], stroke: '#1a1a1c', knob: '#111114', handle: 'rgba(20,20,22,0.95)' },
+  { spout: ['#f08878', '#d4503c', '#9a3428'], body: ['#f49a8c', '#d4503c', '#9a3428'],
+    lid: ['#f0a094', '#b04434'], stroke: '#7a2a20', knob: '#f2e8d8', handle: 'rgba(60,25,20,0.9)' },
+  { spout: ['#88aede', '#4a78b8', '#2f5488'], body: ['#94b8e4', '#4a78b8', '#2f5488'],
+    lid: ['#a0c0e8', '#3f68a0'], stroke: '#24406a', knob: '#f0f0e8', handle: 'rgba(25,40,70,0.9)' },
+  { spout: ['#b8d890', '#88b060', '#5c7c40'], body: ['#c2e09a', '#88b060', '#5c7c40'],
+    lid: ['#cee6ac', '#729a4e'], stroke: '#46602f', knob: '#f8f4e8', handle: 'rgba(50,70,35,0.9)' },
+  { spout: ['#f8d0d8', '#eaa0b0', '#c07888'], body: ['#fad8de', '#eaa0b0', '#c07888'],
+    lid: ['#fadfe4', '#d890a0'], stroke: '#9a5868', knob: '#ffffff', handle: 'rgba(120,70,85,0.9)' },
+  { spout: ['#4a4438', '#2e2a22', '#1a1814'], body: ['#4a4438', '#2a2620', '#161410'],
+    lid: ['#f0d890', '#b8934a'], stroke: '#0e0c0a', knob: '#e8cc74', handle: 'rgba(180,150,80,0.9)' }
+];
+let kettleSkin = loadLS('oyu_kettleSkin', 0);
+if (typeof kettleSkin !== 'number' || kettleSkin < 0 || kettleSkin >= KETTLE_SKINS.length ||
+    totalKilled < kettleSkin * 150) {
+  kettleSkin = 0;
+}
+
+function drawKettleAt(kx, ky, tx, ty, time, C, withStream) {
   const dx = tx - kx, dy = ty - ky;
   const ang = Math.atan2(dy, dx);
   const spoutLen = 38;
@@ -1659,28 +1720,30 @@ function drawKettleAt(kx, ky, tx, ty, time, golden) {
   const sy = ky + Math.sin(ang) * spoutLen;
 
   // --- お湯の流れ(注ぎ口 → 着水点) ---
-  const segs = 10;
-  ctx.save();
-  ctx.lineCap = 'round';
-  for (let pass = 0; pass < 2; pass++) {
-    ctx.beginPath();
-    for (let i = 0; i <= segs; i++) {
-      const t = i / segs;
-      const wob = Math.sin(time * 22 + t * 9) * 1.3 * t;
-      const x = lerp(sx, tx, t) + wob;
-      const y = lerp(sy, ty, t) + wob * 0.4;
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  if (withStream) {
+    const segs = 10;
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (let pass = 0; pass < 2; pass++) {
+      ctx.beginPath();
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const wob = Math.sin(time * 22 + t * 9) * 1.3 * t;
+        const x = lerp(sx, tx, t) + wob;
+        const y = lerp(sy, ty, t) + wob * 0.4;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      if (pass === 0) {
+        ctx.strokeStyle = 'rgba(190,218,240,0.55)';
+        ctx.lineWidth = 3.6;
+      } else {
+        ctx.strokeStyle = 'rgba(245,250,255,0.8)';
+        ctx.lineWidth = 1.4;
+      }
+      ctx.stroke();
     }
-    if (pass === 0) {
-      ctx.strokeStyle = 'rgba(190,218,240,0.55)';
-      ctx.lineWidth = 3.6;
-    } else {
-      ctx.strokeStyle = 'rgba(245,250,255,0.8)';
-      ctx.lineWidth = 1.4;
-    }
-    ctx.stroke();
+    ctx.restore();
   }
-  ctx.restore();
 
   // --- やかん本体(上から見た図) ---
   ctx.save();
@@ -2008,14 +2071,17 @@ function showToast(msg, dur = 4200) {
 const elOverlay = document.getElementById('overlay');
 const elHelpPanel = document.getElementById('helpPanel');
 const elBookPanel = document.getElementById('bookPanel');
+const elKettlePanel = document.getElementById('kettlePanel');
 const elOnboardPanel = document.getElementById('onboardPanel');
 
 function openPanel(which) {
   elOverlay.classList.remove('hidden');
   elHelpPanel.classList.toggle('hidden', which !== 'help');
   elBookPanel.classList.toggle('hidden', which !== 'book');
+  elKettlePanel.classList.toggle('hidden', which !== 'kettle');
   elOnboardPanel.classList.toggle('hidden', which !== 'onboard');
   if (which === 'book') buildBook();
+  if (which === 'kettle') buildKettlePanel();
 }
 function closePanel() {
   const wasOnboarding = !elOnboardPanel.classList.contains('hidden');
@@ -2028,6 +2094,7 @@ function closePanel() {
 }
 document.getElementById('helpBtn').addEventListener('click', () => openPanel('help'));
 document.getElementById('bookBtn').addEventListener('click', () => openPanel('book'));
+document.getElementById('kettleBtn').addEventListener('click', () => openPanel('kettle'));
 document.getElementById('startBtn').addEventListener('click', closePanel);
 document.getElementById('obStartBtn').addEventListener('click', closePanel);
 
@@ -2052,9 +2119,11 @@ elReset.addEventListener('click', () => {
   elapsed = 0;
   day = 1;
   lastClock = '';
+  kettleSkin = 0;
   saveLS('oyu_totalKilled', 0);
   saveLS('oyu_killsByType', {});
   saveLS('oyu_elapsed', 0);
+  saveLS('oyu_kettleSkin', 0);
   updateHud();
   elReset.classList.remove('arm');
   elReset.textContent = L.reset;
@@ -2082,6 +2151,52 @@ function renderTypeIcon(cnv, typeKey) {
   } finally {
     ctx = mainCtx;
   }
+}
+
+// やかんのプレビュー(スキンの色で、湯気なし・注ぎなしの静止画)
+function renderKettleIcon(cnv, skinIdx) {
+  const scale = 1.6;
+  cnv.width = 144;
+  cnv.height = 144;
+  const ic = cnv.getContext('2d');
+  ic.setTransform(scale, 0, 0, scale, 0, 0);
+  const mainCtx = ctx;
+  ctx = ic;
+  try {
+    drawKettleAt(40, 40, 70, 70, 0, KETTLE_SKINS[skinIdx], false);
+  } finally {
+    ctx = mainCtx;
+  }
+}
+
+function buildKettlePanel() {
+  // 次のやかんまでの本数
+  const nextIdx = Math.floor(totalKilled / 150) + 1;
+  document.getElementById('kettleNext').textContent =
+    nextIdx < KETTLE_SKINS.length ? L.kettleNext(nextIdx * 150 - totalKilled) : L.kettleAll;
+
+  const grid = document.getElementById('kettleGrid');
+  grid.innerHTML = '';
+  KETTLE_SKINS.forEach((skin, i) => {
+    const need = i * 150;
+    const unlocked = totalKilled >= need;
+    const card = document.createElement('div');
+    card.className = 'card' + (unlocked ? ' pick' : ' locked') + (i === kettleSkin ? ' sel' : '');
+    if (unlocked) {
+      card.innerHTML = `<div class="nm">${L.kettleNames[i]}</div>`;
+      const cnv = document.createElement('canvas');
+      card.insertBefore(cnv, card.firstChild);
+      renderKettleIcon(cnv, i);
+      card.addEventListener('click', () => {
+        kettleSkin = i;
+        saveLS('oyu_kettleSkin', i);
+        buildKettlePanel();
+      });
+    } else {
+      card.innerHTML = `<div class="q">❓</div><div class="nm">???</div><div class="ct">${L.kettleLock(need)}</div>`;
+    }
+    grid.appendChild(card);
+  });
 }
 
 function buildBook() {
@@ -2377,6 +2492,14 @@ function update(dt, time) {
           else if (r < 0.0185) spawnPickup(w.x, w.y, 'herbicide', 1);   // コモン(50%)
           else if (r < 0.0485 && kettleBoostT <= 0) spawnPickup(w.x, w.y, 'kettle2');
         }
+        // 150本ごとに新しいやかんが解放される
+        if (totalKilled % 150 === 0) {
+          const idx = totalKilled / 150;
+          if (idx < KETTLE_SKINS.length) {
+            showToast(L.kettleUnlocked(L.kettleNames[idx]));
+            unlockChime();
+          }
+        }
         // 除草数に応じて新種が解放される
         for (const key in WEED_TYPES) {
           const tt = WEED_TYPES[key];
@@ -2625,12 +2748,13 @@ function render(time) {
   }
 
   if (pour.active && pour.started) {
-    drawKettleAt(pour.x, pour.y, pour.tx, pour.ty, time, false);
+    drawKettleAt(pour.x, pour.y, pour.tx, pour.ty, time,
+      KETTLE_SKINS[kettleSkin] || KETTLE_SKINS[0], true);
     if (kettleBoostT > 0) {
       const side = pour.x > 80 ? 1 : -1;
       const k2x = clamp(pour.x + 72 * side, 20, Math.max(20, W - 20));
       const t2 = pourTargets()[1];
-      if (t2) drawKettleAt(k2x, pour.y, t2.x, t2.y, time, true);
+      if (t2) drawKettleAt(k2x, pour.y, t2.x, t2.y, time, KETTLE_GOLD, true);
     }
   }
 
