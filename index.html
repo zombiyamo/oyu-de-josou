@@ -2154,18 +2154,21 @@ function update(dt, time) {
   // 自然発生
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    spawnTimer = regrowBoostT > 0 ? rnd(0.25, 0.7) : rnd(0.8, 2.0);
+    spawnTimer = regrowBoostT > 0 ? rnd(0.15, 0.4) : rnd(0.8, 2.0);
     const target = weedTargetCount();
     const wantSpawn =
       (weeds.length < target && Math.random() < 1.15 - weeds.length / target) ||
       // 目標密度を超えても、放置していればじわじわ茂って画面が埋まっていく
       (weeds.length < MAX_WEEDS && Math.random() < 0.28);
     if (wantSpawn) {
-      // 群生しがち: 多くは既存の株の近くから生えてくる
-      if (weeds.length && Math.random() < 0.8) {
-        spawnWeed({ near: weeds[irnd(0, weeds.length - 1)] });
-      } else {
-        spawnWeed({});
+      // 群生しがち: 多くは既存の株の近くから生えてくる。再生ブースト中は2本ずつ
+      const burst = regrowBoostT > 0 ? 2 : 1;
+      for (let b = 0; b < burst; b++) {
+        if (weeds.length && Math.random() < 0.8) {
+          spawnWeed({ near: weeds[irnd(0, weeds.length - 1)] });
+        } else {
+          spawnWeed({});
+        }
       }
     }
   }
@@ -2186,6 +2189,15 @@ function update(dt, time) {
     if (!pour.started && pour.holdTime >= POUR_DELAY) {
       pour.started = true;
       setPouringSound(true);
+    }
+    // 長押し中もアイテムに触れたら拾える
+    for (let i = pickups.length - 1; i >= 0; i--) {
+      const p = pickups[i];
+      const dx = p.x - pour.x, dy = p.y - pour.y;
+      if (dx * dx + dy * dy < 30 * 30) {
+        pickups.splice(i, 1);
+        activatePickup(p);
+      }
     }
   }
   if (pour.active && pour.started) {
@@ -2340,7 +2352,7 @@ function update(dt, time) {
     }
     if (R > Math.hypot(W, H)) {
       herbicideWave = null;
-      regrowBoostT = 45;   // まっさらになった庭に、しばらく早いペースで草が戻ってくる
+      regrowBoostT = 60;   // まっさらになった庭に、しばらく勢いよく草が戻ってくる
     }
   }
   if (regrowBoostT > 0) regrowBoostT = Math.max(0, regrowBoostT - dt);
