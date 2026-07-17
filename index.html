@@ -1728,6 +1728,30 @@ function birdChirp() {
   }
 }
 
+function unlockChime() {
+  // 新種解放のお知らせ。やわらかいペンタトニックの3音
+  if (!audio.ready || muted) return;
+  const c = audio.ctx;
+  const t = c.currentTime + 0.03;
+  const notes = [523.25, 659.25, 783.99];   // C5 → E5 → G5
+  notes.forEach((f, i) => {
+    const t0 = t + i * 0.16;
+    for (const [mult, amp] of [[1, 0.045], [2, 0.012]]) {   // 基音+かすかな倍音
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      o.frequency.value = f * mult;
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(amp, t0 + 0.04);   // 角の立たない立ち上がり
+      g.gain.exponentialRampToValueAtTime(0.0005, t0 + 0.9);
+      o.connect(g);
+      g.connect(audio.master);
+      o.start(t0);
+      o.stop(t0 + 1);
+    }
+  });
+}
+
 function startCrumble(w) {
   w.removing = true;
   w.crumbleTimer = 0;
@@ -2067,6 +2091,7 @@ function update(dt, time) {
           const tt = WEED_TYPES[key];
           if (tt.unlockAt > 0 && prev < tt.unlockAt && totalKilled >= tt.unlockAt) {
             showToast(L.unlockToast(L.names[key] || tt.name));
+            unlockChime();
             for (let s = 0; s < 2; s++) spawnWeed({ type: key });
           }
         }
