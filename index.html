@@ -1055,8 +1055,8 @@ function initAudio() {
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   audio.noiseBuf = buf;
 
-  // --- お湯を注ぐ音: 2帯域のノイズ + 乱流ゆらぎ ---
-  // 低域=水が地面を打つ量感 / 中域=バシャバシャの本体
+  // --- お湯を注ぐ音: 2帯域のノイズ + 乱流ゆらぎ(ちょろちょろとした細い注ぎ) ---
+  // 低域=水の量感(ごく控えめ) / 中域=ちょろちょろの本体(高め・細め)
   const mkNoise = (rate) => {
     const s = c.createBufferSource();
     s.buffer = buf; s.loop = true;
@@ -1067,7 +1067,7 @@ function initAudio() {
   const lpLow = c.createBiquadFilter();
   lpLow.type = 'lowpass'; lpLow.frequency.value = 420;
   const bpMid = c.createBiquadFilter();
-  bpMid.type = 'bandpass'; bpMid.frequency.value = 1100; bpMid.Q.value = 0.7;
+  bpMid.type = 'bandpass'; bpMid.frequency.value = 1700; bpMid.Q.value = 0.9;
   const gLow = c.createGain(), gMid = c.createGain();
   gLow.gain.value = 0; gMid.gain.value = 0;
   src.connect(lpLow); lpLow.connect(gLow); gLow.connect(audio.master);
@@ -1076,7 +1076,7 @@ function initAudio() {
   // 乱流: 超低速ノイズで中域の音量を揺らし、一定のシャーではなくバシャバシャ感を出す
   const turb = mkNoise(0.05);
   const turbLp = c.createBiquadFilter();
-  turbLp.type = 'lowpass'; turbLp.frequency.value = 7;
+  turbLp.type = 'lowpass'; turbLp.frequency.value = 10;   // 細い流れの速いゆらぎ
   const turbG = c.createGain();
   turbG.gain.value = 0;
   turb.connect(turbLp); turbLp.connect(turbG); turbG.connect(gMid.gain);
@@ -1125,21 +1125,21 @@ function setPouringSound(on) {
     param.setTargetAtTime(v, now, tc);
   };
   if (on) {
-    set(P.gLow.gain, 0.06, 0.05);
-    set(P.gMid.gain, 0.065, 0.04);
-    set(P.turbG.gain, 0.038, 0.05);
-    // 注ぎ始めの「バシャッ」という立ち上がり
+    set(P.gLow.gain, 0.014, 0.05);
+    set(P.gMid.gain, 0.032, 0.04);
+    set(P.turbG.gain, 0.016, 0.05);
+    // 注ぎ始めの小さな「ちょろっ」という立ち上がり
     const burst = c.createBufferSource();
     burst.buffer = audio.noiseBuf;
     burst.playbackRate.value = rnd(0.9, 1.1);
     const bf = c.createBiquadFilter();
-    bf.type = 'bandpass'; bf.frequency.value = 700; bf.Q.value = 0.5;
+    bf.type = 'bandpass'; bf.frequency.value = 1000; bf.Q.value = 0.6;
     const bg = c.createGain();
     bg.gain.setValueAtTime(0.0001, now);
-    bg.gain.exponentialRampToValueAtTime(0.11, now + 0.03);
-    bg.gain.exponentialRampToValueAtTime(0.0008, now + 0.3);
+    bg.gain.exponentialRampToValueAtTime(0.04, now + 0.03);
+    bg.gain.exponentialRampToValueAtTime(0.0008, now + 0.2);
     burst.connect(bf); bf.connect(bg); bg.connect(audio.master);
-    burst.start(now); burst.stop(now + 0.35);
+    burst.start(now); burst.stop(now + 0.25);
   } else {
     set(P.gLow.gain, 0, 0.09);
     set(P.gMid.gain, 0, 0.18);   // 少しだけ余韻を残して切る
@@ -1152,14 +1152,14 @@ function bubbleBlip() {
   const c = audio.ctx, now = c.currentTime;
   const o = c.createOscillator();
   const g = c.createGain();
-  // 実際の水泡は弾ける瞬間に音程が「上がる」
-  const f = rnd(240, 700);
-  const dur = rnd(0.05, 0.12);
+  // 実際の水泡は弾ける瞬間に音程が「上がる」。細い流れなので小さく高い泡
+  const f = rnd(380, 1050);
+  const dur = rnd(0.04, 0.1);
   o.type = 'sine';
   o.frequency.setValueAtTime(f, now);
-  o.frequency.exponentialRampToValueAtTime(f * rnd(1.5, 2.3), now + rnd(0.04, 0.1));
+  o.frequency.exponentialRampToValueAtTime(f * rnd(1.5, 2.3), now + rnd(0.03, 0.08));
   g.gain.setValueAtTime(0, now);
-  g.gain.linearRampToValueAtTime(rnd(0.012, 0.035), now + 0.006);
+  g.gain.linearRampToValueAtTime(rnd(0.007, 0.02), now + 0.006);
   g.gain.exponentialRampToValueAtTime(0.0006, now + dur);
   o.connect(g); g.connect(audio.master);
   o.start(now); o.stop(now + dur + 0.03);
@@ -1371,7 +1371,7 @@ function update(dt, time) {
     audio.nextDrift -= dt;
     if (audio.nextDrift <= 0 && audio.ready) {
       audio.nextDrift = rnd(0.2, 0.4);
-      audio.pour.bpMid.frequency.setTargetAtTime(rnd(850, 1500), audio.ctx.currentTime, 0.15);
+      audio.pour.bpMid.frequency.setTargetAtTime(rnd(1400, 2200), audio.ctx.currentTime, 0.15);
     }
   }
   if (lingering) {
