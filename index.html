@@ -648,11 +648,29 @@ function buildStoneSprites() {
       g.fillStyle = col;
       g.fill();
     }
-    // 岩肌の粒
-    for (let i = 0; i < 60; i++) {
-      const dl = rnd(-13, 13);
-      g.fillStyle = `hsla(${h},${sa}%,${clamp(l + dl, 4, 90)}%,${rnd(0.12, 0.28).toFixed(2)})`;
-      g.fillRect(cx + rnd(-r, r) * ex, cy + rnd(-r, r), rnd(0.7, 1.6), rnd(0.7, 1.6));
+    // 岩肌の粒(細かい粒を密に。石英っぽい明るい粒も少し混ぜる)
+    for (let i = 0; i < 110; i++) {
+      const dl = rnd(-14, 14);
+      g.fillStyle = i % 9 === 0
+        ? `hsla(${h},${Math.min(20, sa + 8)}%,${clamp(l + 26, 30, 92)}%,${rnd(0.18, 0.3).toFixed(2)})`
+        : `hsla(${h},${sa}%,${clamp(l + dl, 4, 90)}%,${rnd(0.1, 0.24).toFixed(2)})`;
+      g.fillRect(cx + rnd(-r, r) * ex, cy + rnd(-r, r), rnd(0.5, 1.2), rnd(0.5, 1.2));
+    }
+    // 微細なヒビ(短い折れ線を数本)
+    for (let i = 0; i < irnd(1, 3); i++) {
+      let px2 = cx + rnd(-r * 0.6, r * 0.6), py2 = cy + rnd(-r * 0.6, r * 0.6);
+      let ca = rnd(TAU);
+      g.strokeStyle = `rgba(10,10,14,${rnd(0.14, 0.26).toFixed(2)})`;
+      g.lineWidth = rnd(0.5, 0.8);
+      g.beginPath();
+      g.moveTo(px2, py2);
+      for (let s2 = 0; s2 < irnd(2, 4); s2++) {
+        ca += rnd(-0.9, 0.9);
+        px2 += Math.cos(ca) * rnd(3, 7);
+        py2 += Math.sin(ca) * rnd(3, 7);
+        g.lineTo(px2, py2);
+      }
+      g.stroke();
     }
     g.restore();
     // 縁を締める
@@ -660,6 +678,19 @@ function buildStoneSprites() {
     g.strokeStyle = 'rgba(8,10,12,0.5)';
     g.lineWidth = 1.3;
     g.stroke();
+    // 左上を向く辺にだけ細いリムライト(光の向きをそろえる)
+    g.lineWidth = 1;
+    g.strokeStyle = 'rgba(255,252,240,0.28)';
+    for (let i = 0; i < n; i++) {
+      const p1 = pts[i], p2 = pts[(i + 1) % n];
+      const mx = (p1[0] + p2[0]) / 2 - cx, my = (p1[1] + p2[1]) / 2 - cy;
+      if (mx + my < -r * 0.35) {   // 辺の中点が左上側
+        g.beginPath();
+        g.moveTo(p1[0], p1[1]);
+        g.lineTo(p2[0], p2[1]);
+        g.stroke();
+      }
+    }
     stoneSprites.push(c);
   }
 }
@@ -694,10 +725,10 @@ function buildGravel() {
       const spr = stoneSprites[irnd(0, stoneSprites.length - 1)];
       const big = Math.random() < 0.025;
       const sc = big ? rnd(0.45, 0.62) : rnd(0.28, 0.4);
-      // 影(土に落ちる影なので暖色寄り)
+      // 影(土に落ちる影なので暖色寄り。右下へ少し長めに=石どうしの隙間が深く見える)
       g.beginPath();
-      g.ellipse(x + 1.3, y + 1.8, STONE_R * sc * 1.1, STONE_R * sc * 0.95, 0, 0, TAU);
-      g.fillStyle = 'rgba(25,17,9,0.42)';
+      g.ellipse(x + 1.6, y + 2.2, STONE_R * sc * 1.15, STONE_R * sc * 1.0, 0, 0, TAU);
+      g.fillStyle = 'rgba(22,15,8,0.5)';
       g.fill();
       // 光の向きが揃うよう回転は控えめに、縦横比だけ揺らす
       g.save();
@@ -706,6 +737,19 @@ function buildGravel() {
       g.scale(sc * rnd(0.85, 1.2), sc);
       g.drawImage(spr, -32, -32);
       g.restore();
+      // たまに土汚れ・うっすらコケの色が付いた石を混ぜる(色の単調さを崩す)
+      const tint = Math.random();
+      if (tint < 0.14) {
+        g.fillStyle = `rgba(107,84,58,${rnd(0.08, 0.15).toFixed(2)})`;
+        g.beginPath();
+        g.ellipse(x + rnd(-2, 2), y + rnd(-2, 2), STONE_R * sc * 0.85, STONE_R * sc * 0.7, rnd(TAU), 0, TAU);
+        g.fill();
+      } else if (tint < 0.19) {
+        g.fillStyle = `rgba(96,112,64,${rnd(0.06, 0.11).toFixed(2)})`;
+        g.beginPath();
+        g.ellipse(x + rnd(-2, 2), y + rnd(-2, 2), STONE_R * sc * 0.7, STONE_R * sc * 0.55, rnd(TAU), 0, TAU);
+        g.fill();
+      }
     }
   }
   // すき間を小石で埋める(土はほんの少し覗く程度に)
@@ -739,6 +783,24 @@ function buildGravel() {
                   r < 0.7 ? 'rgba(190,160,120,.18)' : 'rgba(28,20,12,.28)';
     g.fillRect(rnd(gravelCssW), rnd(gravelCssH), rnd(1, 1.8), rnd(1, 1.8));
   }
+  // 全面に粒状ノイズを焼き込む(写真っぽいザラつき。デバイスピクセル単位)
+  const noise = document.createElement('canvas');
+  noise.width = noise.height = 128;
+  const nc = noise.getContext('2d');
+  const nd = nc.createImageData(128, 128);
+  for (let i = 0; i < nd.data.length; i += 4) {
+    const v = 128 + (Math.random() - 0.5) * 90;
+    nd.data[i] = nd.data[i + 1] = nd.data[i + 2] = v;
+    nd.data[i + 3] = 255;
+  }
+  nc.putImageData(nd, 0, 0);
+  g.save();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = 'overlay';
+  g.globalAlpha = 0.14;
+  g.fillStyle = g.createPattern(noise, 'repeat');
+  g.fillRect(0, 0, gravelCanvas.width, gravelCanvas.height);
+  g.restore();
 }
 
 function needGravelRebuild() {
@@ -765,6 +827,13 @@ function buildVignette() {
   grad.addColorStop(0, 'rgba(0,0,0,0)');
   grad.addColorStop(1, 'rgba(20,13,7,0.22)');
   v.fillStyle = grad;
+  v.fillRect(0, 0, W, H);
+  // 斜めの日ざし: 左上がほんのり暖かく、右下がわずかに翳る(光源の向きを統一)
+  const sun = v.createLinearGradient(0, 0, W, H);
+  sun.addColorStop(0, 'rgba(255,240,205,0.07)');
+  sun.addColorStop(0.5, 'rgba(255,240,205,0)');
+  sun.addColorStop(1, 'rgba(18,26,44,0.07)');
+  v.fillStyle = sun;
   v.fillRect(0, 0, W, H);
 }
 
@@ -1172,18 +1241,27 @@ function drawWeed(w, time) {
   const r = w.radius();
   if (r < 0.5) return;
 
-  // 影(這って広がる草は面が薄いので影も控えめに)
-  const isRunner = w.type === 'runner';
-  ctx.beginPath();
-  ctx.ellipse(w.x + 2, w.y + 2.5, r * (isRunner ? 0.5 : 0.75), r * (isRunner ? 0.36 : 0.55), 0, 0, TAU);
-  ctx.fillStyle = isRunner ? 'rgba(18,12,6,0.1)' : 'rgba(18,12,6,0.2)';
-  ctx.fill();
-
   // 新しく生えた草は透明から、ゆっくり立ち上がってふわっと現れる(成長はしない)
   const emerge = clamp(w.age / 2.8, 0, 1);
   const emergeEase = emerge * emerge * (3 - 2 * emerge);   // smoothstep
   const dyingAlpha = (w.crumbleTimer > 0 ? clamp(1 - w.crumbleTimer / CRUMBLE_FADE, 0, 1) : 1) *
                      emergeEase;
+
+  // 接地影: 中心が濃く縁でふわっと消えるソフトシャドウを右下に落とす
+  // (這って広がる草は面が薄いので影も控えめに)
+  const isRunner = w.type === 'runner';
+  const sr = r * (isRunner ? 0.62 : 0.95);
+  const sx2 = w.x + 2.2, sy2 = w.y + 3;
+  const sg = ctx.createRadialGradient(sx2, sy2, sr * 0.15, sx2, sy2, sr);
+  sg.addColorStop(0, isRunner ? 'rgba(14,10,5,0.17)' : 'rgba(14,10,5,0.3)');
+  sg.addColorStop(0.65, isRunner ? 'rgba(14,10,5,0.08)' : 'rgba(14,10,5,0.14)');
+  sg.addColorStop(1, 'rgba(14,10,5,0)');
+  ctx.globalAlpha = dyingAlpha;
+  ctx.beginPath();
+  ctx.ellipse(sx2, sy2, sr, sr * 0.74, 0, 0, TAU);
+  ctx.fillStyle = sg;
+  ctx.fill();
+  ctx.globalAlpha = 1;
   for (let i = 0; i < w.leaves.length; i++) {
     // 葉は1枚ずつ順番に、小さく生えてから育つ
     const lp = clamp(w.size * 1.4 * w.leaves.length - i, 0, 1);
