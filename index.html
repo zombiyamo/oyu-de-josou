@@ -2400,11 +2400,18 @@ function rebuildWeedLayer() {
   ctx = weedLayerCtx;
   try {
     for (const w of weeds) {
-      if (!isDynamicWeed(w)) drawWeed(w, 0);
+      if (!isDynamicWeed(w)) {
+        drawWeed(w, 0);
+        w._inLayer = true;
+      } else {
+        w._inLayer = false;
+      }
+      w._queued = false;
     }
   } finally {
     ctx = mainCtx;
   }
+  pendingLayerAdds.length = 0;
   weedLayerDirty = false;
 }
 
@@ -2419,30 +2426,35 @@ function render(time) {
 
   // 雑草(手前が上に重なるようyでソート)
   weeds.sort((a, b) => a.y - b.y);
+  // _inLayer = その草の絵がキャッシュレイヤーに入っているか。
+  // 新しく生えた草は「レイヤー未収載のまま毎フレーム描く」だけなので再構築は不要。
   for (const w of weeds) {
-    const dyn = isDynamicWeed(w);
-    if (w._dyn !== dyn) {
-      if (!dyn && w._dyn === true) {
-        pendingLayerAdds.push(w);   // 動→静: その1本を描き足すだけで済む
-      } else {
-        weedLayerDirty = true;      // 静→動(レイヤーから消す)や初期化は再構築
+    if (isDynamicWeed(w)) {
+      if (w._inLayer) {
+        weedLayerDirty = true;   // 静→動: レイヤーから消すには再構築が必要
+        w._inLayer = false;
       }
-      w._dyn = dyn;
+    } else if (!w._inLayer && !w._queued) {
+      w._queued = true;
+      pendingLayerAdds.push(w);  // 定着した草は1本だけ描き足す
     }
   }
   const sizeMismatch = !weedLayer ||
       weedLayer.width !== Math.max(1, Math.round(W * RES)) ||
       weedLayer.height !== Math.max(1, Math.round(H * RES));
-  // 再構築は最大でも0.2秒に1回。待っている間は古いレイヤー+動的描画で凌ぐ
-  if ((weedLayerDirty && time - lastLayerRebuild > 0.2) || sizeMismatch) {
+  // 再構築は最大でも0.35秒に1回。待っている間は古いレイヤー+動的描画で凌ぐ
+  if ((weedLayerDirty && time - lastLayerRebuild > 0.35) || sizeMismatch) {
     rebuildWeedLayer();
     lastLayerRebuild = time;
-    pendingLayerAdds.length = 0;
   } else if (!weedLayerDirty && pendingLayerAdds.length) {
     const mainCtx = ctx;
     ctx = weedLayerCtx;
     try {
-      for (const w of pendingLayerAdds) drawWeed(w, 0);
+      for (const w of pendingLayerAdds) {
+        drawWeed(w, 0);
+        w._inLayer = true;
+        w._queued = false;
+      }
     } finally {
       ctx = mainCtx;
     }
@@ -2450,7 +2462,7 @@ function render(time) {
   }
   ctx.drawImage(weedLayer, 0, 0, W, H);
   for (const w of weeds) {
-    if (w._dyn) drawWeed(w, time);
+    if (!w._inLayer) drawWeed(w, time);   // レイヤーに入っていない草は毎フレーム描く
   }
 
   // 落ちているボーナスアイテム
