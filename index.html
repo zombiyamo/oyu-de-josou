@@ -1497,6 +1497,7 @@ function pourTargets() {
 
 function spawnPickup(x, y, kind) {
   if (pickups.length >= 3) return;
+  if (pickups.some((p) => p.kind === kind)) return;   // 同じ種類は同時に1個まで
   pickups.push({
     x: clamp(x, 24, Math.max(24, W - 24)),
     y: clamp(y, 52, Math.max(52, H - 20)),
@@ -2225,11 +2226,12 @@ function update(dt, time) {
         killsByType[w.type] = (killsByType[w.type] || 0) + 1;
         saveLS('oyu_totalKilled', totalKilled);
         saveLS('oyu_killsByType', killsByType);
-        // たまにボーナスアイテムが落ちる(除草剤で枯らした分からは落ちない)
+        // たまにボーナスアイテムが落ちる(除草剤で枯らした分からは落ちない。
+        // 金のやかんは発動中に重ねてドロップしない=連鎖防止)
         if (!w.byHerbicide) {
           const r = Math.random();
           if (r < 0.015) spawnPickup(w.x, w.y, 'herbicide');
-          else if (r < 0.075) spawnPickup(w.x, w.y, 'kettle2');
+          else if (r < 0.045 && kettleBoostT <= 0) spawnPickup(w.x, w.y, 'kettle2');
         }
         // 除草数に応じて新種が解放される
         for (const key in WEED_TYPES) {
