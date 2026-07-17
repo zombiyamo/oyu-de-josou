@@ -191,6 +191,7 @@ const LOCALES = {
       '枯れ草はその場に残ります。<b>タップ</b>するとホロッと崩れて片付きます',
       '種類によってしぶとさが違います。中には根が残って復活するやつも…',
       '<b>除草した数が増えると、新しい種類の雑草</b>が生えてくるようになります',
+      'たまに<b>✨金のやかん</b>(20秒間2本注ぎ)や<b>🧪除草剤</b>(庭ごと除草)が落ちています。タップで拾うと発動',
       '📖ボタンで雑草コレクションを見られます',
       '図鑑を<b>全13種</b>そろえたらコンプリート。最後のひとつは…?'
     ],
@@ -237,6 +238,7 @@ const LOCALES = {
       'Withered weeds stay where they are — <b>tap</b> them to crumble them away',
       'Some weeds are tougher than others. A few regrow from surviving roots…',
       '<b>The more weeds you clear, the more new species</b> start to appear',
+      'Sometimes a <b>✨golden kettle</b> (two kettles for 20s) or <b>🧪weed killer</b> (clears the whole garden) drops — tap to use it',
       'Check your weed collection with the 📖 button',
       'Collect <b>all 13 species</b> to complete the book. The last one…?'
     ],
@@ -283,6 +285,7 @@ const LOCALES = {
       '枯草会留在原地,<b>点一下</b>就会碎掉清理',
       '不同杂草的顽强程度不同,有的根还活着会再长出来…',
       '<b>除草数量越多,出现的新品种就越多</b>',
+      '偶尔会掉落<b>✨金水壶</b>(20秒双壶)或<b>🧪除草剂</b>(清空整个庭院),点击拾取即发动',
       '点📖按钮查看杂草图鉴',
       '集齐<b>全部13种</b>即可完成图鉴。最后一种是…?'
     ],
@@ -329,6 +332,7 @@ const LOCALES = {
       '시든 풀은 그 자리에 남습니다. <b>탭</b>하면 바스러지며 치워집니다',
       '종류마다 끈질김이 다릅니다. 뿌리가 살아남아 다시 자라는 것도…',
       '<b>제거한 잡초가 늘어나면 새로운 종류</b>가 자라나기 시작합니다',
+      '가끔 <b>✨황금 주전자</b>(20초간 주전자 2개)나 <b>🧪제초제</b>(정원 전체 제초)가 떨어집니다. 탭해서 발동',
       '📖 버튼으로 잡초 도감을 볼 수 있습니다',
       '<b>13종</b>을 모두 모으면 도감 완성. 마지막 한 종은…?'
     ],
@@ -1481,6 +1485,7 @@ let ringTimer = 0, wetTimer = 0;
 const pickups = [];        // 地面に落ちたアイテム {x, y, kind:'kettle2'|'herbicide', age}
 let kettleBoostT = 0;      // 金のやかんの残り秒数(>0の間やかんが2つ)
 let herbicideWave = null;  // 除草剤の波 {t, cx, cy}
+let regrowBoostT = 0;      // 除草剤の後、自然が戻ってくる(リスポーン高速化)残り秒数
 const dropHintShown = {};  // 種類ごとの初回ドロップ案内
 
 function pourTargets() {
@@ -2105,7 +2110,7 @@ function update(dt, time) {
   // 自然発生
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    spawnTimer = rnd(0.8, 2.0);
+    spawnTimer = regrowBoostT > 0 ? rnd(0.25, 0.7) : rnd(0.8, 2.0);
     const target = weedTargetCount();
     if (weeds.length < target && Math.random() < 1.15 - weeds.length / target) {
       // 群生しがち: 多くは既存の株の近くから生えてくる
@@ -2285,8 +2290,12 @@ function update(dt, time) {
         startCrumble(w);
       }
     }
-    if (R > Math.hypot(W, H)) herbicideWave = null;
+    if (R > Math.hypot(W, H)) {
+      herbicideWave = null;
+      regrowBoostT = 45;   // まっさらになった庭に、しばらく早いペースで草が戻ってくる
+    }
   }
+  if (regrowBoostT > 0) regrowBoostT = Math.max(0, regrowBoostT - dt);
 
   // 鳥のさえずり
   if (audio.ready && !muted) {
