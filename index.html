@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>お湯de除草 〜砂利の庭〜</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #3f3a33;
+    font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+  }
+  #c { display: block; position: fixed; inset: 0; touch-action: none; cursor: crosshair; }
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; gap: 14px;
+    padding: calc(8px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) 10px calc(14px + env(safe-area-inset-left));
+    background: linear-gradient(rgba(20,16,10,.42), rgba(20,16,10,0));
+    color: #fff; pointer-events: none;
+  }
+  #title { font-size: 15px; font-weight: 700; letter-spacing: .04em;
+    text-shadow: 0 1px 3px rgba(0,0,0,.5); white-space: nowrap; }
+  #title small { font-weight: 400; font-size: 11px; opacity: .85; margin-left: 4px; }
+  #stats { display: flex; gap: 12px; font-size: 12.5px; margin-left: auto;
+    text-shadow: 0 1px 3px rgba(0,0,0,.5); white-space: nowrap; }
+  #mute {
+    pointer-events: auto; border: 0; border-radius: 999px;
+    width: 40px; height: 40px; font-size: 17px; line-height: 1;
+    background: rgba(0,0,0,.35); color: #fff; cursor: pointer;
+    flex: none; touch-action: manipulation;
+  }
+  #mute:active { background: rgba(0,0,0,.55); }
+  #hint {
+    position: fixed; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    background: rgba(20,16,10,.5); color: #fff;
+    font-size: 13px; padding: 8px 16px; border-radius: 999px;
+    pointer-events: none; white-space: nowrap;
+    opacity: 1; transition: opacity 1.2s;
+    text-shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+  #hint.hide { opacity: 0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="title">お湯de除草<small>〜砂利の庭〜</small></div>
+  <div id="stats"><span id="day">1日目</span><span id="count">枯らした草 0本</span></div>
+  <button id="mute" aria-label="音の切り替え">🔊</button>
+</div>
+<div id="hint">押している間、やかんからお湯が出ます</div>
+<script>
+'use strict';
+/* ================================================================
+   お湯de除草 〜砂利の庭〜
+   砂利の隙間の雑草に熱湯をかけて枯らす、癒し系箱庭ゲーム。
+   外部依存なし・1ファイル完結。
+   ================================================================ */
+
+const TAU = Math.PI * 2;
+const rnd   = (a = 1, b) => (b === undefined ? Math.random() * a : a + Math.random() * (b - a));
+const irnd  = (a, b) => Math.floor(rnd(a, b + 1));
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp  = (a, b, t) => a + (b - a) * t;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const elDay = document.getElementById('day');
+const elCount = document.getElementById('count');
+const elHint = document.getElementById('hint');
+const elMute = document.getElementById('mute');
+
+let W = 0, H = 0, DPR = 1;
+
+/* ---------------- 永続化 ---------------- */
+function loadLS(key, fallback) {
+  try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); }
+  catch (e) { return fallback; }
+}
+function saveLS(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+}
+
+let totalKilled = loadLS('oyu_totalKilled', 0);
+let muted = loadLS('oyu_muted', false);
+
+/* ---------------- 砂利の背景 ---------------- */
+let gravelCanvas = null;
+let vignetteCanvas = null;
+let gravelCssW = 0, gravelCssH = 0, gravelDPR = 0;
+const GRAVEL_PAD = 160;   // URLバー伸縮などの小さなリサイズで模様が変わらないよう余白付きで生成
+
+const STONE_COLORS = [
+  '#9a9287', '#8b857c', '#a49c8f', '#b3aa9b', '#89898f',
+  '#7f7b73', '#a79f94', '#948d82', '#9fa0a3', '#b0a598',
+  '#a89a88', '#8e887f'
+];
+
+function buildGravel() {
+  gravelCssW = W + GRAVEL_PAD;
+  gravelCssH = H + GRAVEL_PAD;
+  gravelDPR = DPR;
+  gravelCanvas = document.createElement('canvas');
+  gravelCanvas.width = Math.max(1, Math.round(gravelCssW * DPR));
+  gravelCanvas.height = Math.max(1, Math.round(gravelCssH * DPR));
+  const g = gravelCanvas.getContext('2d');
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  g.fillStyle = '#433c33';           // 石の下の土
+  g.fillRect(0, 0, gravelCssW, gravelCssH);
+
+  const cell = 14;
+  const cols = Math.ceil(gravelCssW / cell) + 2;
+  const rows = Math.ceil(gravelCssH / cell) + 2;
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const x = (i - 0.5) * cell + rnd(-4, 4);
+      const y = (j - 0.5) * cell + rnd(-4, 4);
+      drawStone(g, x, y, rnd(5.5, 10));
+    }
+  }
+  // 細かい砂粒
+  for (let n = 0; n < (gravelCssW * gravelCssH) / 900; n++) {
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(255,250,240,.16)' : 'rgba(30,25,18,.2)';
+    g.fillRect(rnd(gravelCssW), rnd(gravelCssH), 1.2, 1.2);
+  }
+}
+
+function needGravelRebuild() {
+  return !gravelCanvas || gravelDPR !== DPR || W > gravelCssW || H > gravelCssH;
+}
+
+// 生成済みの砂利から表示域を切り出す(生成が追いつくまでは引き伸ばしで凌ぐ)
+function drawGravel() {
+  const sw = W * gravelDPR, sh = H * gravelDPR;
+  if (sw <= gravelCanvas.width && sh <= gravelCanvas.height) {
+    ctx.drawImage(gravelCanvas, 0, 0, sw, sh, 0, 0, W, H);
+  } else {
+    ctx.drawImage(gravelCanvas, 0, 0, gravelCanvas.width, gravelCanvas.height, 0, 0, W, H);
+  }
+}
+
+function buildVignette() {
+  vignetteCanvas = document.createElement('canvas');
+  vignetteCanvas.width = Math.max(1, Math.round(W * DPR));
+  vignetteCanvas.height = Math.max(1, Math.round(H * DPR));
+  const v = vignetteCanvas.getContext('2d');
+  v.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const grad = v.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.78);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(1, 'rgba(20,14,8,0.22)');
+  v.fillStyle = grad;
+  v.fillRect(0, 0, W, H);
+}
+
+function drawStone(g, x, y, r) {
+  const n = irnd(6, 9);
+  const rot = rnd(TAU);
+  const ex = rnd(0.8, 1.3);          // 石の縦横比
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = rot + (i / n) * TAU + rnd(-0.18, 0.18);
+    const rr = r * rnd(0.72, 1.12);
+    pts.push([x + Math.cos(a) * rr * ex, y + Math.sin(a) * rr]);
+  }
+  const path = () => {
+    g.beginPath();
+    let [px, py] = midpoint(pts[n - 1], pts[0]);
+    g.moveTo(px, py);
+    for (let i = 0; i < n; i++) {
+      const p = pts[i];
+      const [mx, my] = midpoint(p, pts[(i + 1) % n]);
+      g.quadraticCurveTo(p[0], p[1], mx, my);
+    }
+    g.closePath();
+  };
+  // 影
+  g.save();
+  g.translate(1.4, 1.9);
+  path();
+  g.fillStyle = 'rgba(15,10,5,.38)';
+  g.fill();
+  g.restore();
+  // 本体
+  path();
+  g.fillStyle = STONE_COLORS[irnd(0, STONE_COLORS.length - 1)];
+  g.fill();
+  // ハイライト
+  g.beginPath();
+  g.ellipse(x - r * 0.18 * ex, y - r * 0.22, r * 0.5 * ex, r * 0.4, rot, 0, TAU);
+  g.fillStyle = 'rgba(255,252,245,0.10)';
+  g.fill();
+}
+function midpoint(a, b) { return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; }
+
+/* ---------------- 濡れた地面 ---------------- */
+let wetCanvas = null, wetCtx = null;
+let wetActive = false, wetLastAdd = -1e9, wetFadeAcc = 0;
+
+function buildWet() {
+  const old = wetCanvas;
+  wetCanvas = document.createElement('canvas');
+  wetCanvas.width = Math.max(1, Math.round(W * DPR));
+  wetCanvas.height = Math.max(1, Math.round(H * DPR));
+  wetCtx = wetCanvas.getContext('2d');
+  wetCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (old && wetActive) {
+    // リサイズしても濡れ跡を引き継ぐ(雑草座標と同じ比例スケール)
+    wetCtx.save();
+    wetCtx.setTransform(1, 0, 0, 1, 0, 0);
+    wetCtx.drawImage(old, 0, 0, old.width, old.height, 0, 0, wetCanvas.width, wetCanvas.height);
+    wetCtx.restore();
+  }
+}
+function addWet(x, y) {
+  const r = rnd(15, 24);
+  const grad = wetCtx.createRadialGradient(x, y, 0, x, y, r);
+  grad.addColorStop(0, 'rgba(24,18,12,0.5)');
+  grad.addColorStop(1, 'rgba(24,18,12,0)');
+  wetCtx.fillStyle = grad;
+  wetCtx.beginPath();
+  wetCtx.arc(x, y, r, 0, TAU);
+  wetCtx.fill();
+  wetActive = true;
+  wetLastAdd = elapsed;
+}
+function fadeWet(dt) {
+  if (!wetActive) return;
+  // 毎フレームの極小アルファは8bit量子化で効かないため、まとめて減衰させる
+  wetFadeAcc += dt / 14;
+  if (wetFadeAcc >= 0.05) {
+    wetCtx.save();
+    wetCtx.setTransform(1, 0, 0, 1, 0, 0);
+    wetCtx.globalCompositeOperation = 'destination-out';
+    wetCtx.globalAlpha = Math.min(wetFadeAcc, 1);
+    wetCtx.fillStyle = '#000';   // addWetのグラデーションが残っていると全面消去にならない
+    wetCtx.fillRect(0, 0, wetCanvas.width, wetCanvas.height);
+    wetCtx.restore();
+    wetFadeAcc = 0;
+  }
+  if (elapsed - wetLastAdd > 28) {
+    // 完全に乾いた: 量子化の残りかすを消して描画もスキップする
+    wetCtx.save();
+    wetCtx.setTransform(1, 0, 0, 1, 0, 0);
+    wetCtx.clearRect(0, 0, wetCanvas.width, wetCanvas.height);
+    wetCtx.restore();
+    wetActive = false;
+    wetFadeAcc = 0;
+  }
+}
+
+/* ---------------- 雑草 ---------------- */
+/*
+ * wakakusa : 若草(細い葉のイネ科)。すぐ枯れる。
+ * rosette  : タンポポ・オオバコ系。葉が広い。中くらいのしぶとさ。
+ * dokudami : ドクダミ系。ハート形の葉。しっかりかけないと根が残り復活する。
+ */
+const WEED_TYPES = {
+  wakakusa: {
+    hue: 96, sat: 46, light: 33,
+    scaldThreshold: 0.22, witherDur: 20, growDur: 55,
+    leafCount: [8, 13], leafLen: [16, 33], leafWidth: [1.8, 3],
+    weight: 0.5
+  },
+  rosette: {
+    hue: 112, sat: 42, light: 28,
+    scaldThreshold: 0.45, witherDur: 38, growDur: 85,
+    leafCount: [7, 10], leafLen: [20, 36], leafWidth: [8, 13],
+    weight: 0.3
+  },
+  dokudami: {
+    hue: 128, sat: 38, light: 24,
+    scaldThreshold: 0.72, witherDur: 60, growDur: 105,
+    leafCount: [5, 8], leafLen: [16, 25], leafWidth: [12, 18],
+    weight: 0.2
+  }
+};
+
+const weeds = [];
+const roots = [];       // ドクダミの生き残った根 {x, y, timer, hp}
+let killedThisSession = 0;
+
+function pickWeedType() {
+  const r = Math.random();
+  let acc = 0;
+  for (const key in WEED_TYPES) {
+    acc += WEED_TYPES[key].weight;
+    if (r < acc) return key;
+  }
+  return 'wakakusa';
+}
+
+function makeWeed(x, y, typeKey, opts = {}) {
+  const t = WEED_TYPES[typeKey];
+  const leafCount = irnd(t.leafCount[0], t.leafCount[1]);
+  const leaves = [];
+  for (let i = 0; i < leafCount; i++) {
+    leaves.push({
+      angle: (i / leafCount) * TAU + rnd(-0.35, 0.35),
+      len: rnd(t.leafLen[0], t.leafLen[1]),
+      width: rnd(t.leafWidth[0], t.leafWidth[1]),
+      curve: rnd(-0.5, 0.5),
+      shade: rnd(-5, 6),          // 葉ごとの明度ゆらぎ
+      heatBias: rnd(0.75, 1.3),   // 葉ごとの枯れやすさ(不均一に枯れる)
+      swayFactor: rnd(0.6, 1.3)
+    });
+  }
+  return {
+    x, y, type: typeKey, leaves,
+    size: opts.size !== undefined ? opts.size : 0.06,
+    growDur: t.growDur * (opts.regrown ? 0.55 : 1) * rnd(0.85, 1.2),
+    scald: 0, visualScald: 0, wither: 0,
+    crumbleTimer: 0, dead: false, rootCooked: false,
+    rootHp: typeKey === 'dokudami' ? (opts.rootHp !== undefined ? opts.rootHp : irnd(1, 2)) : 0,
+    hasFlower: typeKey === 'dokudami' && Math.random() < 0.55,
+    swayPhase: rnd(TAU),
+    radius() {
+      let m = 0;
+      for (const l of this.leaves) if (l.len > m) m = l.len;
+      return m * this.size;
+    }
+  };
+}
+
+function weedTargetCount() {
+  return clamp(Math.round((W * H) / 21000), 12, 48);
+}
+
+function spawnWeed(opts = {}) {
+  const margin = 24;
+  const topMargin = 64;   // HUDの下から
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const x = opts.x !== undefined ? opts.x + rnd(-8, 8) : rnd(margin, W - margin);
+    const y = opts.y !== undefined ? opts.y + rnd(-8, 8) : rnd(topMargin, H - margin);
+    let ok = x >= margin && x <= W - margin && y >= topMargin && y <= H - margin;
+    if (ok) {
+      for (const w of weeds) {
+        const dx = w.x - x, dy = w.y - y;
+        if (dx * dx + dy * dy < 34 * 34) { ok = false; break; }
+      }
+    }
+    if (ok || opts.x !== undefined) {
+      // 指定座標スポーン(根からの復活)でも画面内に収める
+      const sx = clamp(x, margin, Math.max(margin, W - margin));
+      const sy = clamp(y, topMargin, Math.max(topMargin, H - margin));
+      weeds.push(makeWeed(sx, sy, opts.type || pickWeedType(), opts));
+      return true;
+    }
+  }
+  return false;
+}
+
+function initGarden() {
+  weeds.length = 0;
+  roots.length = 0;
+  const n = Math.round(weedTargetCount() * 0.8);
+  for (let i = 0; i < n; i++) spawnWeed({ size: rnd(0.45, 1) });
+  for (let i = 0; i < 3; i++) spawnWeed({ size: rnd(0.08, 0.2) });
+}
+
+/* ---- 葉の色: 健康 → 湯がかかって色変わり → 黄 → 茶 → 枯れ色 ---- */
+function leafColor(t, scald, wither, shade) {
+  let h = t.hue, s = t.sat, l = t.light + shade;
+  const sc = clamp(scald, 0, 1);
+  // お湯がかかった直後: 濃く・くすんで湿った色に
+  h -= 10 * sc; s -= 12 * sc; l -= 6 * sc;
+  if (wither > 0) {
+    const stages = [
+      [0.0, h, s, l],
+      [0.32, 68, 50, 43 + shade * 0.6],
+      [0.62, 45, 46, 40 + shade * 0.5],
+      [0.85, 30, 34, 33 + shade * 0.4],
+      [1.0, 37, 23, 55 + shade * 0.4]
+    ];
+    for (let i = 1; i < stages.length; i++) {
+      if (wither <= stages[i][0]) {
+        const [w0, h0, s0, l0] = stages[i - 1];
+        const [w1, h1, s1, l1] = stages[i];
+        const tt = (wither - w0) / (w1 - w0);
+        h = lerp(h0, h1, tt); s = lerp(s0, s1, tt); l = lerp(l0, l1, tt);
+        break;
+      }
+    }
+  }
+  return `hsl(${h.toFixed(1)},${clamp(s, 0, 100).toFixed(1)}%,${clamp(l, 4, 92).toFixed(1)}%)`;
+}
+
+/* ---- 葉の描画 ---- */
+function drawBlade(c, len, width, curve) {
+  // イネ科の細い葉。原点=根元、+x方向に伸びる
+  const mx = len * 0.5, my = curve * len * 0.4;
+  c.beginPath();
+  c.moveTo(0, -width / 2);
+  c.quadraticCurveTo(mx, my - width * 0.7, len, my * 1.6);
+  c.quadraticCurveTo(mx, my + width * 0.7, 0, width / 2);
+  c.closePath();
+  c.fill();
+}
+function drawTeardrop(c, len, width, curve) {
+  // タンポポ系の広い葉
+  const my = curve * len * 0.25;
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.bezierCurveTo(len * 0.25, -width * 0.62 + my, len * 0.72, -width * 0.5 + my, len, my);
+  c.bezierCurveTo(len * 0.72, width * 0.5 + my, len * 0.25, width * 0.62 + my, 0, 0);
+  c.closePath();
+  c.fill();
+  // 主脈
+  c.save();
+  c.globalAlpha *= 0.35;
+  c.strokeStyle = 'rgba(20,40,15,0.8)';
+  c.lineWidth = 0.7;
+  c.beginPath();
+  c.moveTo(len * 0.1, my * 0.2);
+  c.quadraticCurveTo(len * 0.5, my * 0.7, len * 0.9, my);
+  c.stroke();
+  c.restore();
+}
+function drawHeart(c, len, width, stemColor) {
+  // ドクダミのハート形の葉。茎の先に葉がつく
+  const stem = len * 0.45;
+  c.save();
+  c.strokeStyle = stemColor;
+  c.lineWidth = 1.1;
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.lineTo(stem, 0);
+  c.stroke();
+  c.translate(stem, 0);
+  const L = len * 0.85;
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.bezierCurveTo(-L * 0.12, -width * 0.72, L * 0.62, -width * 0.66, L, 0);
+  c.bezierCurveTo(L * 0.62, width * 0.66, -L * 0.12, width * 0.72, 0, 0);
+  c.closePath();
+  c.fill();
+  c.restore();
+}
+
+function drawWeed(w, time) {
+  const t = WEED_TYPES[w.type];
+  const r = w.radius();
+  if (r < 0.5) return;
+
+  // 影
+  ctx.beginPath();
+  ctx.ellipse(w.x + 2, w.y + 2.5, r * 0.75, r * 0.55, 0, 0, TAU);
+  ctx.fillStyle = 'rgba(15,10,5,0.16)';
+  ctx.fill();
+
+  const sway = Math.sin(time * 1.3 + w.swayPhase) * 0.035 * (1 - w.wither * 0.8);
+  const shownLeaves = Math.max(2, Math.ceil(w.leaves.length * clamp(w.size * 1.4, 0, 1)));
+
+  const dyingAlpha = w.crumbleTimer > 0 ? clamp(1 - w.crumbleTimer / CRUMBLE_FADE, 0, 1) : 1;
+  for (let i = 0; i < shownLeaves; i++) {
+    const leaf = w.leaves[i];
+    const lw = clamp(w.wither * leaf.heatBias, 0, 1);   // 葉ごとの枯れ具合
+    const len = leaf.len * w.size * (1 - 0.28 * lw);
+    const width = leaf.width * clamp(w.size * 1.3, 0.3, 1) * (1 - 0.5 * lw);
+    // 枯れてくると葉の向きが乱れて縮れる
+    const shrivel = Math.sin(i * 7.3 + w.swayPhase * 3) * 0.5 * lw;
+    const ang = leaf.angle + sway * leaf.swayFactor + shrivel;
+    ctx.save();
+    ctx.translate(w.x, w.y);
+    ctx.rotate(ang);
+    ctx.globalAlpha = dyingAlpha * (1 - 0.15 * lw);
+    ctx.fillStyle = leafColor(t, w.visualScald * leaf.heatBias, lw, leaf.shade);
+    if (w.type === 'wakakusa') drawBlade(ctx, len, width, leaf.curve);
+    else if (w.type === 'rosette') drawTeardrop(ctx, len, width, leaf.curve);
+    else drawHeart(ctx, len, width, lw > 0.5 ? 'rgba(90,60,40,.8)' : 'rgba(120,50,60,.8)');
+    ctx.restore();
+  }
+
+  // ドクダミの白い花(元気なうちだけ)
+  if (w.type === 'dokudami' && w.hasFlower && w.size > 0.85 && w.wither < 0.35) {
+    ctx.save();
+    ctx.translate(w.x, w.y);
+    ctx.globalAlpha = dyingAlpha * (1 - w.wither * 2.5);
+    for (let p = 0; p < 4; p++) {
+      ctx.save();
+      ctx.rotate((p / 4) * TAU + w.swayPhase);
+      ctx.beginPath();
+      ctx.ellipse(3.4, 0, 3.1, 1.6, 0, 0, TAU);
+      ctx.fillStyle = '#f3f1e8';
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, 1.5, 0, TAU);
+    ctx.fillStyle = '#d8cf7a';
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------------- パーティクル ---------------- */
+const steam = [], splashes = [], flakes = [], rings = [];
+let steamSprite = null;
+function buildSteamSprite() {
+  steamSprite = document.createElement('canvas');
+  steamSprite.width = steamSprite.height = 64;
+  const s = steamSprite.getContext('2d');
+  const g = s.createRadialGradient(32, 32, 2, 32, 32, 30);
+  g.addColorStop(0, 'rgba(255,255,255,0.55)');
+  g.addColorStop(0.6, 'rgba(255,255,255,0.22)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  s.fillStyle = g;
+  s.fillRect(0, 0, 64, 64);
+}
+
+let steamAcc = 0;
+function emitSteam(x, y, rate, dt) {
+  if (steam.length > 220) return;
+  steamAcc += rate * dt;
+  while (steamAcc >= 1) {
+    steamAcc -= 1;
+    steam.push({
+      x: x + rnd(-9, 9), y: y + rnd(-6, 6),
+      vx: rnd(-7, 7), vy: rnd(-32, -17),
+      r: rnd(8, 15), life: rnd(1.4, 2.6), age: 0, drift: rnd(TAU)
+    });
+  }
+}
+function emitSteamBurst(x, y, n) {
+  for (let i = 0; i < n; i++) {
+    steam.push({
+      x: x + rnd(-12, 12), y: y + rnd(-9, 9),
+      vx: rnd(-12, 12), vy: rnd(-46, -22),
+      r: rnd(10, 18), life: rnd(1.8, 3), age: 0, drift: rnd(TAU)
+    });
+  }
+}
+function emitSplash(x, y, dt) {
+  if (splashes.length > 260) return;
+  const n = 26 * dt;
+  for (let i = 0; i < n * 2; i++) {
+    if (Math.random() > 0.55) continue;
+    const a = rnd(TAU), sp = rnd(18, 55);
+    splashes.push({
+      x, y,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.55,
+      life: rnd(0.22, 0.42), age: 0
+    });
+  }
+}
+function emitFlakes(w) {
+  const r = w.radius();
+  for (let i = 0; i < 9; i++) {
+    const a = rnd(TAU);
+    flakes.push({
+      x: w.x + Math.cos(a) * r * 0.4, y: w.y + Math.sin(a) * r * 0.4,
+      vx: Math.cos(a) * rnd(6, 20), vy: Math.sin(a) * rnd(6, 20) - 4,
+      r: rnd(1, 2.4), life: rnd(0.7, 1.3), age: 0
+    });
+  }
+}
+
+function updateParticles(dt, time) {
+  for (let i = steam.length - 1; i >= 0; i--) {
+    const p = steam[i];
+    p.age += dt;
+    if (p.age >= p.life) { steam.splice(i, 1); continue; }
+    p.x += (p.vx + Math.sin(time * 1.7 + p.drift) * 9) * dt;
+    p.y += p.vy * dt;
+    p.vy *= (1 - 0.35 * dt);
+  }
+  for (let i = splashes.length - 1; i >= 0; i--) {
+    const p = splashes[i];
+    p.age += dt;
+    if (p.age >= p.life) { splashes.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= (1 - 3 * dt); p.vy *= (1 - 3 * dt);
+  }
+  for (let i = flakes.length - 1; i >= 0; i--) {
+    const p = flakes[i];
+    p.age += dt;
+    if (p.age >= p.life) { flakes.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= (1 - 2 * dt); p.vy *= (1 - 2 * dt);
+  }
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const p = rings[i];
+    p.age += dt;
+    if (p.age >= p.life) rings.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  for (const p of rings) {
+    const t = p.age / p.life;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4 + t * 16, 0, TAU);
+    ctx.strokeStyle = `rgba(225,238,250,${(0.4 * (1 - t)).toFixed(3)})`;
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(226,240,252,0.85)';
+  for (const p of splashes) {
+    const t = p.age / p.life;
+    ctx.globalAlpha = 1 - t;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 1.7, 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  for (const p of flakes) {
+    const t = p.age / p.life;
+    ctx.globalAlpha = 1 - t;
+    ctx.fillStyle = '#6d5236';
+    ctx.fillRect(p.x, p.y, p.r, p.r);
+  }
+  ctx.globalAlpha = 1;
+  for (const p of steam) {
+    const t = p.age / p.life;
+    const scale = (p.r / 32) * (1 + t * 1.7);
+    ctx.globalAlpha = 0.62 * (1 - t) * Math.min(1, t * 6 + 0.35);
+    ctx.drawImage(steamSprite, p.x - 32 * scale, p.y - 32 * scale, 64 * scale, 64 * scale);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------------- やかんとお湯 ---------------- */
+const pour = { active: false, x: 0, y: 0, pointerId: null };
+let lingering = null;    // 注ぎ終わった後もしばらく湯気が立つ {x, y, ttl}
+let ringTimer = 0, wetTimer = 0;
+
+function kettlePos() {
+  // 注ぎ先の右上にやかんを置く(右端では左に反転)
+  const side = pour.x > W - 130 ? -1 : 1;
+  return {
+    x: pour.x + 62 * side,
+    y: Math.max(46, pour.y - 66),
+    side
+  };
+}
+
+function drawKettle(time) {
+  const k = kettlePos();
+  const dx = pour.x - k.x, dy = pour.y - k.y;
+  const ang = Math.atan2(dy, dx);
+  const spoutLen = 42;
+  const sx = k.x + Math.cos(ang) * spoutLen;
+  const sy = k.y + Math.sin(ang) * spoutLen;
+
+  // --- お湯の流れ(注ぎ口 → 着水点) ---
+  const segs = 10;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let pass = 0; pass < 2; pass++) {
+    ctx.beginPath();
+    for (let i = 0; i <= segs; i++) {
+      const t = i / segs;
+      const wob = Math.sin(time * 22 + t * 9) * 1.3 * t;
+      const x = lerp(sx, pour.x, t) + wob;
+      const y = lerp(sy, pour.y, t) + wob * 0.4;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    if (pass === 0) {
+      ctx.strokeStyle = 'rgba(190,218,240,0.55)';
+      ctx.lineWidth = 3.6;
+    } else {
+      ctx.strokeStyle = 'rgba(245,250,255,0.8)';
+      ctx.lineWidth = 1.4;
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // --- やかん本体(上から見た図) ---
+  ctx.save();
+  ctx.translate(k.x, k.y);
+  ctx.rotate(ang);
+  // 影
+  ctx.beginPath();
+  ctx.ellipse(2, 6, 27, 21, 0, 0, TAU);
+  ctx.fillStyle = 'rgba(15,10,5,0.2)';
+  ctx.fill();
+  // 注ぎ口
+  ctx.beginPath();
+  ctx.moveTo(20, -6);
+  ctx.lineTo(spoutLen, -2.6);
+  ctx.lineTo(spoutLen, 2.6);
+  ctx.lineTo(20, 6);
+  ctx.closePath();
+  const spg = ctx.createLinearGradient(20, -6, 20, 6);
+  spg.addColorStop(0, '#d9dbde');
+  spg.addColorStop(0.5, '#aeb2b8');
+  spg.addColorStop(1, '#84888e');
+  ctx.fillStyle = spg;
+  ctx.fill();
+  ctx.strokeStyle = '#6b6f75';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // 胴体
+  const bg = ctx.createRadialGradient(-8, -8, 4, 0, 0, 30);
+  bg.addColorStop(0, '#eceef0');
+  bg.addColorStop(0.55, '#b9bdc2');
+  bg.addColorStop(1, '#83878d');
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 26, 22, 0, 0, TAU);
+  ctx.fillStyle = bg;
+  ctx.fill();
+  ctx.strokeStyle = '#63676d';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  // ふた
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 13, 11, 0, 0, TAU);
+  const lg = ctx.createRadialGradient(-4, -4, 1, 0, 0, 13);
+  lg.addColorStop(0, '#f2f4f6');
+  lg.addColorStop(1, '#9da1a7');
+  ctx.fillStyle = lg;
+  ctx.fill();
+  ctx.strokeStyle = '#6b6f75';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // つまみ
+  ctx.beginPath();
+  ctx.arc(0, 0, 3.4, 0, TAU);
+  ctx.fillStyle = '#3c3f44';
+  ctx.fill();
+  // 取っ手(胴体をまたぐアーチを上から見た形)
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 20, 24, 0, Math.PI * 0.62, Math.PI * 1.38);
+  ctx.strokeStyle = 'rgba(45,42,40,0.9)';
+  ctx.lineWidth = 4.4;
+  ctx.stroke();
+  ctx.restore();
+
+  // 注ぎ口からのかすかな湯気は update 側で emit
+  return { sx, sy };
+}
+
+/* ---------------- 効果音(Web Audio・全て合成) ---------------- */
+const audio = {
+  ctx: null, master: null,
+  pourGain: null, pourFilter: null,
+  windGain: null,
+  nextBird: 6,
+  nextBubble: 0,
+  ready: false
+};
+
+function initAudio() {
+  if (audio.ready) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  const c = new AC();
+  audio.ctx = c;
+  audio.master = c.createGain();
+  audio.master.gain.value = muted ? 0 : 1;
+  audio.master.connect(c.destination);
+
+  // 使い回すノイズバッファ(2秒)
+  const len = c.sampleRate * 2;
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  audio.noiseBuf = buf;
+
+  // --- お湯を注ぐ音: ノイズ + バンドパス ---
+  const src = c.createBufferSource();
+  src.buffer = buf; src.loop = true;
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass'; bp.frequency.value = 950; bp.Q.value = 0.9;
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 2600;
+  const pg = c.createGain();
+  pg.gain.value = 0;
+  src.connect(bp); bp.connect(lp); lp.connect(pg); pg.connect(audio.master);
+  src.start();
+  audio.pourGain = pg;
+  audio.pourFilter = bp;
+
+  // --- そよ風(ごく小さく) ---
+  const wsrc = c.createBufferSource();
+  wsrc.buffer = buf; wsrc.loop = true;
+  wsrc.playbackRate.value = 0.4;
+  const wlp = c.createBiquadFilter();
+  wlp.type = 'lowpass'; wlp.frequency.value = 320;
+  const wg = c.createGain();
+  wg.gain.value = 0.012;
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 0.06;
+  const lfoG = c.createGain();
+  lfoG.gain.value = 0.008;
+  lfo.connect(lfoG); lfoG.connect(wg.gain);
+  lfo.start();
+  wsrc.connect(wlp); wlp.connect(wg); wg.connect(audio.master);
+  wsrc.start();
+  audio.windGain = wg;
+
+  audio.ready = true;
+}
+
+// ユーザージェスチャの中で呼ぶ。タッチでは pointerdown が activation にならない
+// ブラウザがあるため、pointerup 側からも呼んで確実に解錠する。
+// iOS の割り込みで 'interrupted'(非標準state)になる場合もあるので running 以外は resume を試す。
+function unlockAudio() {
+  initAudio();
+  if (audio.ctx && audio.ctx.state !== 'running') {
+    const p = audio.ctx.resume();
+    if (p && p.catch) p.catch(() => {});
+  }
+}
+
+function setPouringSound(on) {
+  if (!audio.ready) return;
+  const g = audio.pourGain.gain;
+  const now = audio.ctx.currentTime;
+  g.cancelScheduledValues(now);
+  g.setValueAtTime(g.value, now);
+  g.linearRampToValueAtTime(on ? 0.13 : 0, now + (on ? 0.08 : 0.25));
+}
+
+function bubbleBlip() {
+  if (!audio.ready || muted) return;
+  const c = audio.ctx, now = c.currentTime;
+  const o = c.createOscillator();
+  const g = c.createGain();
+  const f = rnd(320, 780);
+  o.type = 'sine';
+  o.frequency.setValueAtTime(f, now);
+  o.frequency.exponentialRampToValueAtTime(f * 0.72, now + 0.09);
+  g.gain.setValueAtTime(0, now);
+  g.gain.linearRampToValueAtTime(rnd(0.015, 0.04), now + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0008, now + rnd(0.06, 0.13));
+  o.connect(g); g.connect(audio.master);
+  o.start(now); o.stop(now + 0.16);
+}
+
+function birdChirp() {
+  if (!audio.ready || muted) return;
+  const c = audio.ctx;
+  let t = c.currentTime + 0.02;
+  const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+  const out = pan || audio.master;
+  if (pan) { pan.pan.value = rnd(-0.8, 0.8); pan.connect(audio.master); }
+  const syllables = irnd(2, 4);
+  const base = rnd(2400, 4100);
+  for (let i = 0; i < syllables; i++) {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    const f0 = base * rnd(0.9, 1.12);
+    const dur = rnd(0.06, 0.13);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f0 * rnd(0.7, 1.4), t + dur);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(rnd(0.012, 0.03), t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + dur);
+    o.connect(g); g.connect(out);
+    o.start(t); o.stop(t + dur + 0.02);
+    t += dur + rnd(0.03, 0.1);
+  }
+}
+
+function crumblePoof() {
+  if (!audio.ready || muted) return;
+  const c = audio.ctx, now = c.currentTime;
+  const src = c.createBufferSource();
+  src.buffer = audio.noiseBuf;
+  src.playbackRate.value = rnd(0.7, 1);
+  const hp = c.createBiquadFilter();
+  hp.type = 'highpass'; hp.frequency.value = 1400;
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.05, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  src.connect(hp); hp.connect(g); g.connect(audio.master);
+  src.start(now); src.stop(now + 0.14);
+}
+
+function applyMute() {
+  elMute.textContent = muted ? '🔇' : '🔊';
+  if (audio.ready) {
+    const g = audio.master.gain;
+    const now = audio.ctx.currentTime;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(g.value, now);   // 現在値を起点にしないとランプが瞬時ジャンプになる
+    g.linearRampToValueAtTime(muted ? 0 : 1, now + 0.15);
+  }
+}
+
+elMute.addEventListener('click', () => {
+  muted = !muted;
+  saveLS('oyu_muted', muted);
+  unlockAudio();
+  applyMute();
+});
+
+/* ---------------- 入力 ---------------- */
+let pouredTotal = 0;     // ヒント表示制御用
+let hintHidden = false;
+
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (pour.active) return;                 // 2本目の指は無視
+  pour.active = true;
+  pour.pointerId = e.pointerId;
+  pour.x = e.clientX; pour.y = e.clientY;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  unlockAudio();
+  setPouringSound(true);
+}, { passive: false });
+
+canvas.addEventListener('pointermove', (e) => {
+  if (!pour.active || e.pointerId !== pour.pointerId) return;
+  pour.x = e.clientX; pour.y = e.clientY;
+});
+
+function endPour(e) {
+  if (!pour.active || (e && e.pointerId !== undefined && e.pointerId !== pour.pointerId)) return;
+  pour.active = false;
+  pour.pointerId = null;
+  unlockAudio();   // タッチ端末では指を離した瞬間に初めて解錠できることがある
+  setPouringSound(false);
+  lingering = { x: pour.x, y: pour.y, ttl: 2.4 };
+}
+canvas.addEventListener('pointerup', endPour);
+canvas.addEventListener('pointercancel', endPour);
+window.addEventListener('blur', () => endPour());
+
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+/* ---------------- 時間・1日サイクル ---------------- */
+const DAY_LEN = 30;              // 現実30秒 = ゲーム内1日
+const CRUMBLE_FADE = 1.4;        // 枯れ切ってから崩れて消えるまでの秒数
+let elapsed = 0;
+let day = 1;
+let spawnTimer = rnd(2, 5);
+
+function dayTint() {
+  const t = (elapsed % DAY_LEN) / DAY_LEN;
+  // 朝焼け → 昼 → 夕焼け → 短い夜
+  let color = null, alpha = 0;
+  if (t < 0.12) { color = '255,185,120'; alpha = 0.09 * (1 - t / 0.12); }
+  else if (t > 0.68 && t <= 0.86) {
+    const k = (t - 0.68) / 0.18;
+    color = '255,150,85'; alpha = 0.11 * Math.sin(k * Math.PI);
+  } else if (t > 0.86) {
+    const k = (t - 0.86) / 0.14;
+    color = '55,72,120'; alpha = 0.16 * Math.sin(k * Math.PI);
+  }
+  if (color && alpha > 0.004) {
+    ctx.fillStyle = `rgba(${color},${alpha.toFixed(3)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/* ---------------- 更新 ---------------- */
+function update(dt, time) {
+  elapsed += dt;
+  const newDay = Math.floor(elapsed / DAY_LEN) + 1;
+  if (newDay !== day) {
+    day = newDay;
+    // 一晩経つとまた生えてくる(放置しても庭が飽和しない程度に)
+    if (weeds.length < weedTargetCount() * 1.5) {
+      const n = irnd(1, 2);
+      for (let i = 0; i < n; i++) spawnWeed({ size: 0.06 });
+    }
+    if (Math.random() < 0.7) birdChirp();
+  }
+
+  // 自然発生
+  spawnTimer -= dt;
+  if (spawnTimer <= 0) {
+    spawnTimer = rnd(2.5, 6);
+    const target = weedTargetCount();
+    if (weeds.length < target && Math.random() < 1 - weeds.length / target) {
+      spawnWeed({ size: 0.06 });
+    }
+  }
+
+  // ドクダミの根からの復活
+  for (let i = roots.length - 1; i >= 0; i--) {
+    const r = roots[i];
+    r.timer -= dt;
+    if (r.timer <= 0) {
+      roots.splice(i, 1);
+      spawnWeed({ x: r.x, y: r.y, type: 'dokudami', size: 0.08, regrown: true, rootHp: r.hp });
+    }
+  }
+
+  // お湯を注ぐ
+  if (pour.active) {
+    pouredTotal += dt;
+    if (!hintHidden && pouredTotal > 1.6) {
+      hintHidden = true;
+      elHint.classList.add('hide');
+    }
+    // 熱を加える
+    for (const w of weeds) {
+      const dx = w.x - pour.x, dy = w.y - pour.y;
+      const R = 36 + w.radius() * 0.4;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < R * R) {
+        const fall = 1 - Math.sqrt(d2) / R;
+        w.scald = Math.min(w.scald + dt * 1.15 * fall, 2.2);
+        // ドクダミは根まで火が通った瞬間、湯気がブワッと立つ(復活しない合図)
+        if (w.type === 'dokudami' && !w.rootCooked && w.scald >= 1.7) {
+          w.rootCooked = true;
+          emitSteamBurst(w.x, w.y, 12);
+        }
+      }
+    }
+    // 濡れ・水しぶき・湯気・輪
+    wetTimer -= dt;
+    if (wetTimer <= 0) { wetTimer = 0.07; addWet(pour.x, pour.y); }
+    emitSplash(pour.x, pour.y, dt);
+    emitSteam(pour.x, pour.y, 15, dt);
+    ringTimer -= dt;
+    if (ringTimer <= 0) {
+      ringTimer = 0.15;
+      rings.push({ x: pour.x, y: pour.y, age: 0, life: 0.5 });
+    }
+    // ぽこぽこ音
+    audio.nextBubble -= dt;
+    if (audio.nextBubble <= 0) {
+      audio.nextBubble = rnd(0.05, 0.16);
+      bubbleBlip();
+    }
+  }
+  if (lingering) {
+    lingering.ttl -= dt;
+    emitSteam(lingering.x, lingering.y, 6 * clamp(lingering.ttl / 2.4, 0, 1), dt);
+    if (lingering.ttl <= 0) lingering = null;
+  }
+
+  // 雑草の成長と枯れ
+  for (let i = weeds.length - 1; i >= 0; i--) {
+    const w = weeds[i];
+    const t = WEED_TYPES[w.type];
+
+    // 見た目の色変化はワンテンポ遅れてついてくる
+    w.visualScald += (clamp(w.scald, 0, 1) - w.visualScald) * Math.min(1, dt * 1.6);
+
+    if (w.wither >= 1) {
+      w.crumbleTimer += dt;
+      if (w.crumbleTimer >= CRUMBLE_FADE) {
+        // 崩れて消える
+        emitFlakes(w);
+        crumblePoof();
+        if (w.type === 'dokudami' && !w.rootCooked && w.rootHp > 0) {
+          // 根が生き残った → しばらくして復活
+          roots.push({ x: w.x, y: w.y, timer: rnd(14, 28), hp: w.rootHp - 1 });
+        }
+        weeds.splice(i, 1);
+        totalKilled++;
+        killedThisSession++;
+        saveLS('oyu_totalKilled', totalKilled);
+        updateHud();
+        continue;
+      }
+    } else if (w.scald >= t.scaldThreshold) {
+      // 枯れが進行(たっぷりかけた葉ほど早い)
+      const strength = 0.4 + 0.6 * clamp(w.scald, 0, 1.5) / 1.5;
+      w.wither = Math.min(1, w.wither + dt * strength / t.witherDur);
+    } else {
+      // 少ししかかかっていない葉はゆっくり回復する
+      w.scald = Math.max(0, w.scald - dt * 0.02);
+      if (w.wither < 0.15) w.wither = Math.max(0, w.wither - dt * 0.004);
+    }
+
+    // 成長(枯れかけの草は伸びない)
+    if (w.wither < 0.2 && w.size < 1) {
+      w.size = Math.min(1, w.size + dt * (1.25 - w.size) / w.growDur * 3.2);
+    }
+  }
+
+  // 鳥のさえずり
+  if (audio.ready && !muted) {
+    audio.nextBird -= dt;
+    if (audio.nextBird <= 0) {
+      audio.nextBird = rnd(9, 22);
+      birdChirp();
+    }
+  }
+
+  fadeWet(dt);
+  updateParticles(dt, time);
+}
+
+/* ---------------- 描画 ---------------- */
+function render(time) {
+  drawGravel();   // 不透明の全面描画なのでclearRectは不要
+  if (wetActive) {
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.drawImage(wetCanvas, 0, 0, W, H);
+    ctx.restore();
+  }
+
+  // 雑草(手前が上に重なるようyでソート)
+  weeds.sort((a, b) => a.y - b.y);
+  for (const w of weeds) drawWeed(w, time);
+
+  drawParticles();
+  if (pour.active) drawKettle(time);
+
+  dayTint();
+  ctx.drawImage(vignetteCanvas, 0, 0, W, H);
+}
+
+function updateHud() {
+  elDay.textContent = `${day}日目`;
+  elCount.textContent = `枯らした草 ${totalKilled}本`;
+}
+
+/* ---------------- メインループ ---------------- */
+let lastTime = 0;
+function frame(ms) {
+  const time = ms / 1000;
+  let dt = time - lastTime;
+  lastTime = time;
+  if (dt > 0.1) dt = 0.1;      // タブ復帰などの巨大なdtを抑制
+  if (dt > 0) {
+    const prevDay = day;
+    update(dt, time);
+    if (day !== prevDay) updateHud();
+    render(time);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------------- リサイズ ---------------- */
+function resize() {
+  const oldW = W, oldH = H;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.max(1, Math.round(W * DPR));
+  canvas.height = Math.max(1, Math.round(H * DPR));
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  buildVignette();
+  if (oldW > 0 && oldH > 0) {
+    const fx = W / oldW, fy = H / oldH;
+    for (const w of weeds) { w.x *= fx; w.y *= fy; }
+    for (const r of roots) { r.x *= fx; r.y *= fy; }
+  }
+  if (!gravelCanvas || !wetCanvas) {
+    // 初回だけ即時生成
+    buildGravel();
+    buildWet();
+  } else {
+    // 砂利の全再生成は重い(大画面で数百ms)ので、ドラッグリサイズ中は走らせない
+    scheduleRebuild();
+  }
+}
+let rebuildTimer = 0;
+function scheduleRebuild() {
+  clearTimeout(rebuildTimer);
+  rebuildTimer = setTimeout(() => {
+    if (needGravelRebuild()) buildGravel();
+    if (wetCanvas.width !== Math.max(1, Math.round(W * DPR)) ||
+        wetCanvas.height !== Math.max(1, Math.round(H * DPR))) buildWet();
+  }, 220);
+}
+let resizeQueued = false;
+window.addEventListener('resize', () => {
+  if (resizeQueued) return;
+  resizeQueued = true;
+  requestAnimationFrame(() => { resizeQueued = false; resize(); });
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!audio.ctx) return;
+  if (document.hidden) {
+    const p = audio.ctx.suspend();
+    if (p && p.catch) p.catch(() => {});
+  } else if (!muted && audio.ctx.state !== 'running') {
+    const p = audio.ctx.resume();
+    if (p && p.catch) p.catch(() => {});
+  }
+});
+
+/* ---------------- 開始 ---------------- */
+buildSteamSprite();
+resize();
+initGarden();
+applyMute();
+updateHud();
+requestAnimationFrame((ms) => { lastTime = ms / 1000; requestAnimationFrame(frame); });
+</script>
+</body>
+</html>
