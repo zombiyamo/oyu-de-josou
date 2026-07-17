@@ -1139,13 +1139,16 @@ function drawWeed(w, time) {
     ctx.restore();
   }
 
-  // 株元(葉が集まる中心が締まって見える)
-  const NO_CROWN = { dokudami: 1, katabami: 1, clover: 1, runner: 1, koke: 1, sumire: 1, yotsuba: 1, nijiyotsuba: 1 };
-  if (!NO_CROWN[w.type] && w.size > 0.15) {
-    ctx.globalAlpha = dyingAlpha;
+  // 株元: 葉が集まる中心をふわっと暗くする(ベタ塗りの丸は不自然なのでグラデで)
+  const CROWN = { rosette: 1, enokoro: 1, tsuyukusa: 1 };
+  if (CROWN[w.type] && w.size > 0.15) {
+    const cr = 3.2 * w.size + 0.6;
+    const cg = ctx.createRadialGradient(w.x, w.y, 0, w.x, w.y, cr);
+    cg.addColorStop(0, `hsla(${t.hue},${Math.max(0, t.sat - 10)}%,${Math.max(6, t.light - 13)}%,${(0.55 * dyingAlpha).toFixed(2)})`);
+    cg.addColorStop(1, 'hsla(0,0%,0%,0)');
+    ctx.fillStyle = cg;
     ctx.beginPath();
-    ctx.arc(w.x, w.y, 2.2 * w.size + 0.4, 0, TAU);
-    ctx.fillStyle = hslStr(t.hue, Math.max(0, t.sat - 6), Math.max(8, t.light - 11));
+    ctx.arc(w.x, w.y, cr, 0, TAU);
     ctx.fill();
   }
 
