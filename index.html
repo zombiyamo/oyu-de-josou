@@ -74,7 +74,10 @@ const elCount = document.getElementById('count');
 const elHint = document.getElementById('hint');
 const elMute = document.getElementById('mute');
 
-let W = 0, H = 0, DPR = 1;
+/* 画面はZOOM倍に寄せて表示する。ゲーム内はすべて「ワールド座標」
+   (CSS px ÷ ZOOM)で扱い、描画時にまとめて拡大する。 */
+const ZOOM = 1.6;
+let W = 0, H = 0, DPR = 1, RES = 1;   // W,H=ワールド寸法 / RES=1ワールド単位あたりのデバイスpx
 
 /* ---------------- 永続化 ---------------- */
 function loadLS(key, fallback) {
@@ -91,7 +94,7 @@ let muted = loadLS('oyu_muted', false);
 /* ---------------- 砂利の背景 ---------------- */
 let gravelCanvas = null;
 let vignetteCanvas = null;
-let gravelCssW = 0, gravelCssH = 0, gravelDPR = 0;
+let gravelCssW = 0, gravelCssH = 0, gravelRES = 0;
 const GRAVEL_PAD = 160;   // URLバー伸縮などの小さなリサイズで模様が変わらないよう余白付きで生成
 
 const hslStr = (h, s, l) => `hsl(${h},${s}%,${l}%)`;
@@ -169,12 +172,12 @@ function buildStoneSprites() {
 function buildGravel() {
   gravelCssW = W + GRAVEL_PAD;
   gravelCssH = H + GRAVEL_PAD;
-  gravelDPR = DPR;
+  gravelRES = RES;
   gravelCanvas = document.createElement('canvas');
-  gravelCanvas.width = Math.max(1, Math.round(gravelCssW * DPR));
-  gravelCanvas.height = Math.max(1, Math.round(gravelCssH * DPR));
+  gravelCanvas.width = Math.max(1, Math.round(gravelCssW * RES));
+  gravelCanvas.height = Math.max(1, Math.round(gravelCssH * RES));
   const g = gravelCanvas.getContext('2d');
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.setTransform(RES, 0, 0, RES, 0, 0);
 
   g.fillStyle = '#3b3b3e';           // 石の間からのぞく暗い土
   g.fillRect(0, 0, gravelCssW, gravelCssH);
@@ -223,12 +226,12 @@ function buildGravel() {
 }
 
 function needGravelRebuild() {
-  return !gravelCanvas || gravelDPR !== DPR || W > gravelCssW || H > gravelCssH;
+  return !gravelCanvas || gravelRES !== RES || W > gravelCssW || H > gravelCssH;
 }
 
 // 生成済みの砂利から表示域を切り出す(生成が追いつくまでは引き伸ばしで凌ぐ)
 function drawGravel() {
-  const sw = W * gravelDPR, sh = H * gravelDPR;
+  const sw = W * gravelRES, sh = H * gravelRES;
   if (sw <= gravelCanvas.width && sh <= gravelCanvas.height) {
     ctx.drawImage(gravelCanvas, 0, 0, sw, sh, 0, 0, W, H);
   } else {
@@ -238,10 +241,10 @@ function drawGravel() {
 
 function buildVignette() {
   vignetteCanvas = document.createElement('canvas');
-  vignetteCanvas.width = Math.max(1, Math.round(W * DPR));
-  vignetteCanvas.height = Math.max(1, Math.round(H * DPR));
+  vignetteCanvas.width = Math.max(1, Math.round(W * RES));
+  vignetteCanvas.height = Math.max(1, Math.round(H * RES));
   const v = vignetteCanvas.getContext('2d');
-  v.setTransform(DPR, 0, 0, DPR, 0, 0);
+  v.setTransform(RES, 0, 0, RES, 0, 0);
   const grad = v.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.78);
   grad.addColorStop(0, 'rgba(0,0,0,0)');
   grad.addColorStop(1, 'rgba(12,12,16,0.22)');
@@ -258,10 +261,10 @@ let wetActive = false, wetLastAdd = -1e9, wetFadeAcc = 0;
 function buildWet() {
   const old = wetCanvas;
   wetCanvas = document.createElement('canvas');
-  wetCanvas.width = Math.max(1, Math.round(W * DPR));
-  wetCanvas.height = Math.max(1, Math.round(H * DPR));
+  wetCanvas.width = Math.max(1, Math.round(W * RES));
+  wetCanvas.height = Math.max(1, Math.round(H * RES));
   wetCtx = wetCanvas.getContext('2d');
-  wetCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  wetCtx.setTransform(RES, 0, 0, RES, 0, 0);
   if (old && wetActive) {
     // リサイズしても濡れ跡を引き継ぐ(雑草座標と同じ比例スケール)
     wetCtx.save();
@@ -310,7 +313,10 @@ function fadeWet(dt) {
 /* ---------------- 雑草 ---------------- */
 /*
  * wakakusa : 若草(細い葉のイネ科)。すぐ枯れる。
- * rosette  : タンポポ・オオバコ系。葉が広い。中くらいのしぶとさ。
+ * rosette  : タンポポ系。ギザギザの葉。中くらいのしぶとさ。
+ * oobako   : オオバコ。丸く広い葉に平行脈。踏まれ強くやや頑丈。
+ * katabami : カタバミ。クローバー風の三つ葉+黄色い花。
+ * sugina   : スギナ。針のような細い葉が放射状。しぶとい。
  * dokudami : ドクダミ系。ハート形の葉。しっかりかけないと根が残り復活する。
  */
 const WEED_TYPES = {
@@ -318,19 +324,37 @@ const WEED_TYPES = {
     hue: 97, sat: 52, light: 34,
     scaldThreshold: 0.22, witherDur: 20, growDur: 55,
     leafCount: [8, 13], leafLen: [16, 33], leafWidth: [1.8, 3],
-    weight: 0.5
+    weight: 0.26
   },
   rosette: {
     hue: 118, sat: 46, light: 27,
     scaldThreshold: 0.45, witherDur: 38, growDur: 85,
     leafCount: [7, 10], leafLen: [20, 36], leafWidth: [8, 13],
-    weight: 0.3
+    weight: 0.17
+  },
+  oobako: {
+    hue: 124, sat: 42, light: 30,
+    scaldThreshold: 0.5, witherDur: 40, growDur: 90,
+    leafCount: [5, 7], leafLen: [16, 30], leafWidth: [9, 14],
+    weight: 0.12
+  },
+  katabami: {
+    hue: 88, sat: 52, light: 36,
+    scaldThreshold: 0.3, witherDur: 24, growDur: 60,
+    leafCount: [4, 7], leafLen: [12, 20], leafWidth: [8, 11],
+    weight: 0.18
+  },
+  sugina: {
+    hue: 104, sat: 36, light: 31,
+    scaldThreshold: 0.55, witherDur: 45, growDur: 75,
+    leafCount: [10, 16], leafLen: [14, 26], leafWidth: [1.1, 1.7],
+    weight: 0.12
   },
   dokudami: {
     hue: 136, sat: 44, light: 21,
     scaldThreshold: 0.72, witherDur: 60, growDur: 105,
     leafCount: [5, 8], leafLen: [16, 25], leafWidth: [12, 18],
-    weight: 0.2
+    weight: 0.15
   }
 };
 
@@ -370,7 +394,8 @@ function makeWeed(x, y, typeKey, opts = {}) {
     scald: 0, visualScald: 0, wither: 0,
     crumbleTimer: 0, dead: false, rootCooked: false,
     rootHp: typeKey === 'dokudami' ? (opts.rootHp !== undefined ? opts.rootHp : irnd(1, 2)) : 0,
-    hasFlower: typeKey === 'dokudami' && Math.random() < 0.55,
+    hasFlower: typeKey === 'dokudami' ? Math.random() < 0.55 :
+               typeKey === 'katabami' ? Math.random() < 0.5 : false,
     swayPhase: rnd(TAU),
     radius() {
       let m = 0;
@@ -381,12 +406,13 @@ function makeWeed(x, y, typeKey, opts = {}) {
 }
 
 function weedTargetCount() {
-  return clamp(Math.round((W * H) / 21000), 12, 48);
+  // W,Hはワールド座標(ズーム後の見える範囲)なので、寄った分だけ本数も減る
+  return clamp(Math.round((W * H) / 13000), 10, 40);
 }
 
 function spawnWeed(opts = {}) {
   const margin = 24;
-  const topMargin = 64;   // HUDの下から
+  const topMargin = 44;   // HUD(CSS表示)の下から。ワールド座標なのでZOOM分小さい
   for (let attempt = 0; attempt < 10; attempt++) {
     const x = opts.x !== undefined ? opts.x + rnd(-8, 8) : rnd(margin, W - margin);
     const y = opts.y !== undefined ? opts.y + rnd(-8, 8) : rnd(topMargin, H - margin);
@@ -394,7 +420,7 @@ function spawnWeed(opts = {}) {
     if (ok) {
       for (const w of weeds) {
         const dx = w.x - x, dy = w.y - y;
-        if (dx * dx + dy * dy < 34 * 34) { ok = false; break; }
+        if (dx * dx + dy * dy < 30 * 30) { ok = false; break; }
       }
     }
     if (ok || opts.x !== undefined) {
@@ -527,7 +553,11 @@ function drawWeed(w, time) {
   ctx.fillStyle = 'rgba(10,10,14,0.2)';
   ctx.fill();
 
-  const sway = Math.sin(time * 1.3 + w.swayPhase) * 0.035 * (1 - w.wither * 0.8);
+  // 庭を渡っていく風。場所によって位相がずれるので波のように揺れる
+  const stiff = 1 - w.wither * 0.8;   // 枯れた草は硬くて揺れない
+  const wind = Math.sin(time * 1.15 + w.x * 0.021 + w.y * 0.008 + w.swayPhase * 0.3) * 0.6 +
+               Math.sin(time * 0.4 + w.x * 0.006 + w.swayPhase) * 0.4;
+  const sway = wind * 0.06 * stiff;
   const shownLeaves = Math.max(2, Math.ceil(w.leaves.length * clamp(w.size * 1.4, 0, 1)));
 
   const dyingAlpha = w.crumbleTimer > 0 ? clamp(1 - w.crumbleTimer / CRUMBLE_FADE, 0, 1) : 1;
@@ -546,32 +576,92 @@ function drawWeed(w, time) {
     const col = leafHSL(t, w.visualScald * leaf.heatBias, lw, leaf.shade);
     ctx.fillStyle = hslStr(col[0], col[1], col[2]);
     const hiFade = 1 - lw * 0.7;        // 枯れるほどツヤ・葉脈が消える
-    if (w.type === 'wakakusa') {
-      drawBlade(ctx, len, width, leaf.curve);
-      // 中央のハイライト筋
-      ctx.fillStyle = hslStr(col[0] + 3, col[1], clamp(col[2] + 10 * hiFade, 4, 92));
-      drawBlade(ctx, len * 0.9, width * 0.45, leaf.curve);
-    } else if (w.type === 'rosette') {
-      drawRosetteLeaf(ctx, len, width, leaf.curve);
-      // 内側の明るい面と主脈
-      ctx.fillStyle = hslStr(col[0] + 4, Math.max(0, col[1] - 4), clamp(col[2] + 8 * hiFade, 4, 92));
-      drawTeardrop(ctx, len * 0.88, width * 0.42, leaf.curve);
-      ctx.strokeStyle = `rgba(233,244,222,${(0.3 * hiFade).toFixed(3)})`;
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(len * 0.08, 0);
-      ctx.quadraticCurveTo(len * 0.5, leaf.curve * len * 0.12, len * 0.94, leaf.curve * len * 0.25);
-      ctx.stroke();
-    } else {
-      drawHeart(ctx, len, width,
-        lw > 0.5 ? 'rgba(90,60,40,.8)' : 'rgba(130,50,60,.85)',
-        0.22 * hiFade);
+    // 風で葉自体もしなる(回転に加えて曲がりが変わる)
+    const bend = leaf.curve + wind * 0.28 * leaf.swayFactor * stiff;
+    switch (w.type) {
+      case 'wakakusa':
+        drawBlade(ctx, len, width, bend);
+        // 中央のハイライト筋
+        ctx.fillStyle = hslStr(col[0] + 3, col[1], clamp(col[2] + 10 * hiFade, 4, 92));
+        drawBlade(ctx, len * 0.9, width * 0.45, bend);
+        break;
+      case 'rosette': {
+        const bc = leaf.curve + wind * 0.14 * leaf.swayFactor * stiff;
+        drawRosetteLeaf(ctx, len, width, bc);
+        // 内側の明るい面と主脈
+        ctx.fillStyle = hslStr(col[0] + 4, Math.max(0, col[1] - 4), clamp(col[2] + 8 * hiFade, 4, 92));
+        drawTeardrop(ctx, len * 0.88, width * 0.42, bc);
+        ctx.strokeStyle = `rgba(233,244,222,${(0.3 * hiFade).toFixed(3)})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(len * 0.08, 0);
+        ctx.quadraticCurveTo(len * 0.5, bc * len * 0.12, len * 0.94, bc * len * 0.25);
+        ctx.stroke();
+        break;
+      }
+      case 'oobako': {
+        const bc = leaf.curve + wind * 0.12 * leaf.swayFactor * stiff;
+        drawTeardrop(ctx, len, width * 1.15, bc);
+        // オオバコらしい平行脈
+        ctx.strokeStyle = `rgba(224,240,214,${(0.28 * hiFade).toFixed(3)})`;
+        ctx.lineWidth = 0.7;
+        ctx.beginPath();
+        for (let v = -1; v <= 1; v++) {
+          ctx.moveTo(len * 0.1, v * width * 0.1);
+          ctx.quadraticCurveTo(len * 0.5, v * width * 0.32 + bc * len * 0.12, len * 0.9, bc * len * 0.25);
+        }
+        ctx.stroke();
+        break;
+      }
+      case 'sugina': {
+        // 針のような葉と小さな節
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(len * 0.08, 0);
+        ctx.quadraticCurveTo(len * 0.55, bend * len * 0.3, len, bend * len * 0.5);
+        ctx.stroke();
+        ctx.fillStyle = hslStr(col[0] - 8, col[1], Math.max(6, col[2] - 8));
+        ctx.beginPath();
+        ctx.arc(len * 0.4, bend * len * 0.16, width * 0.8, 0, TAU);
+        ctx.fill();
+        break;
+      }
+      case 'katabami': {
+        // 茎の先に3枚のハート形の小葉(クローバー風)
+        const stem = len * 0.55;
+        ctx.strokeStyle = hslStr(col[0] - 6, Math.max(0, col[1] - 12), Math.max(8, col[2] - 8));
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(stem, 0);
+        ctx.stroke();
+        ctx.translate(stem, 0);
+        for (let k = -1; k <= 1; k++) {
+          ctx.save();
+          ctx.rotate(k * 1.02);
+          const L = len * 0.48, Wd = width * 0.6;
+          ctx.beginPath();
+          ctx.ellipse(L * 0.55, -Wd * 0.33, L * 0.52, Wd * 0.42, -0.3, 0, TAU);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(L * 0.55, Wd * 0.33, L * 0.52, Wd * 0.42, 0.3, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+        }
+        break;
+      }
+      default:   // dokudami
+        drawHeart(ctx, len, width,
+          lw > 0.5 ? 'rgba(90,60,40,.8)' : 'rgba(130,50,60,.85)',
+          0.22 * hiFade);
     }
     ctx.restore();
   }
 
   // 株元(葉が集まる中心が締まって見える)
-  if (w.type !== 'dokudami' && w.size > 0.15) {
+  if (w.type !== 'dokudami' && w.type !== 'katabami' && w.size > 0.15) {
     ctx.globalAlpha = dyingAlpha;
     ctx.beginPath();
     ctx.arc(w.x, w.y, 2.2 * w.size + 0.4, 0, TAU);
@@ -579,24 +669,42 @@ function drawWeed(w, time) {
     ctx.fill();
   }
 
-  // ドクダミの白い花(元気なうちだけ)
-  if (w.type === 'dokudami' && w.hasFlower && w.size > 0.85 && w.wither < 0.35) {
+  // 花(元気なうちだけ)
+  if (w.hasFlower && w.size > 0.85 && w.wither < 0.35) {
     ctx.save();
-    ctx.translate(w.x, w.y);
-    ctx.globalAlpha = dyingAlpha * (1 - w.wither * 2.5);
-    for (let p = 0; p < 4; p++) {
-      ctx.save();
-      ctx.rotate((p / 4) * TAU + w.swayPhase);
+    ctx.globalAlpha = dyingAlpha * clamp(1 - w.wither * 2.5, 0, 1);
+    if (w.type === 'dokudami') {
+      ctx.translate(w.x, w.y);
+      for (let p = 0; p < 4; p++) {
+        ctx.save();
+        ctx.rotate((p / 4) * TAU + w.swayPhase);
+        ctx.beginPath();
+        ctx.ellipse(3.4, 0, 3.1, 1.6, 0, 0, TAU);
+        ctx.fillStyle = '#f3f1e8';
+        ctx.fill();
+        ctx.restore();
+      }
       ctx.beginPath();
-      ctx.ellipse(3.4, 0, 3.1, 1.6, 0, 0, TAU);
-      ctx.fillStyle = '#f3f1e8';
+      ctx.arc(0, 0, 1.5, 0, TAU);
+      ctx.fillStyle = '#d8cf7a';
       ctx.fill();
-      ctx.restore();
+    } else if (w.type === 'katabami') {
+      // 小さな黄色い五弁花
+      ctx.translate(w.x + 3 + sway * 6, w.y - 3);
+      for (let p = 0; p < 5; p++) {
+        ctx.save();
+        ctx.rotate((p / 5) * TAU + w.swayPhase);
+        ctx.beginPath();
+        ctx.ellipse(2.1, 0, 1.9, 1.1, 0, 0, TAU);
+        ctx.fillStyle = '#ecd04a';
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, 0.9, 0, TAU);
+      ctx.fillStyle = '#bb8d2b';
+      ctx.fill();
     }
-    ctx.beginPath();
-    ctx.arc(0, 0, 1.5, 0, TAU);
-    ctx.fillStyle = '#d8cf7a';
-    ctx.fill();
     ctx.restore();
   }
   ctx.globalAlpha = 1;
@@ -843,10 +951,11 @@ function drawKettle(time) {
 /* ---------------- 効果音(Web Audio・全て合成) ---------------- */
 const audio = {
   ctx: null, master: null,
-  pourGain: null, pourFilter: null,
+  pour: null,          // {gLow, gMid, gHi, bpMid, turbG}
   windGain: null,
   nextBird: 6,
   nextBubble: 0,
+  nextDrift: 0,
   ready: false
 };
 
@@ -867,19 +976,36 @@ function initAudio() {
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   audio.noiseBuf = buf;
 
-  // --- お湯を注ぐ音: ノイズ + バンドパス ---
-  const src = c.createBufferSource();
-  src.buffer = buf; src.loop = true;
-  const bp = c.createBiquadFilter();
-  bp.type = 'bandpass'; bp.frequency.value = 950; bp.Q.value = 0.9;
-  const lp = c.createBiquadFilter();
-  lp.type = 'lowpass'; lp.frequency.value = 2600;
-  const pg = c.createGain();
-  pg.gain.value = 0;
-  src.connect(bp); bp.connect(lp); lp.connect(pg); pg.connect(audio.master);
+  // --- お湯を注ぐ音: 3帯域のノイズ + 乱流ゆらぎ ---
+  // 低域=水が地面を打つ量感 / 中域=バシャバシャの本体 / 高域=熱湯のシューという飛沫
+  const mkNoise = (rate) => {
+    const s = c.createBufferSource();
+    s.buffer = buf; s.loop = true;
+    if (rate) s.playbackRate.value = rate;
+    return s;
+  };
+  const src = mkNoise();
+  const lpLow = c.createBiquadFilter();
+  lpLow.type = 'lowpass'; lpLow.frequency.value = 420;
+  const bpMid = c.createBiquadFilter();
+  bpMid.type = 'bandpass'; bpMid.frequency.value = 1100; bpMid.Q.value = 0.7;
+  const hpHi = c.createBiquadFilter();
+  hpHi.type = 'highpass'; hpHi.frequency.value = 3600;
+  const gLow = c.createGain(), gMid = c.createGain(), gHi = c.createGain();
+  gLow.gain.value = 0; gMid.gain.value = 0; gHi.gain.value = 0;
+  src.connect(lpLow); lpLow.connect(gLow); gLow.connect(audio.master);
+  src.connect(bpMid); bpMid.connect(gMid); gMid.connect(audio.master);
+  src.connect(hpHi); hpHi.connect(gHi); gHi.connect(audio.master);
   src.start();
-  audio.pourGain = pg;
-  audio.pourFilter = bp;
+  // 乱流: 超低速ノイズで中域の音量を揺らし、一定のシャーではなくバシャバシャ感を出す
+  const turb = mkNoise(0.05);
+  const turbLp = c.createBiquadFilter();
+  turbLp.type = 'lowpass'; turbLp.frequency.value = 7;
+  const turbG = c.createGain();
+  turbG.gain.value = 0;
+  turb.connect(turbLp); turbLp.connect(turbG); turbG.connect(gMid.gain);
+  turb.start();
+  audio.pour = { gLow, gMid, gHi, bpMid, turbG };
 
   // --- そよ風(ごく小さく) ---
   const wsrc = c.createBufferSource();
@@ -915,11 +1041,36 @@ function unlockAudio() {
 
 function setPouringSound(on) {
   if (!audio.ready) return;
-  const g = audio.pourGain.gain;
-  const now = audio.ctx.currentTime;
-  g.cancelScheduledValues(now);
-  g.setValueAtTime(g.value, now);
-  g.linearRampToValueAtTime(on ? 0.13 : 0, now + (on ? 0.08 : 0.25));
+  const c = audio.ctx, now = c.currentTime;
+  const P = audio.pour;
+  const set = (param, v, tc) => {
+    param.cancelScheduledValues(now);
+    param.setValueAtTime(param.value, now);
+    param.setTargetAtTime(v, now, tc);
+  };
+  if (on) {
+    set(P.gLow.gain, 0.06, 0.05);
+    set(P.gMid.gain, 0.065, 0.04);
+    set(P.gHi.gain, 0.03, 0.09);
+    set(P.turbG.gain, 0.038, 0.05);
+    // 注ぎ始めの「バシャッ」という立ち上がり
+    const burst = c.createBufferSource();
+    burst.buffer = audio.noiseBuf;
+    burst.playbackRate.value = rnd(0.9, 1.1);
+    const bf = c.createBiquadFilter();
+    bf.type = 'bandpass'; bf.frequency.value = 700; bf.Q.value = 0.5;
+    const bg = c.createGain();
+    bg.gain.setValueAtTime(0.0001, now);
+    bg.gain.exponentialRampToValueAtTime(0.11, now + 0.03);
+    bg.gain.exponentialRampToValueAtTime(0.0008, now + 0.3);
+    burst.connect(bf); bf.connect(bg); bg.connect(audio.master);
+    burst.start(now); burst.stop(now + 0.35);
+  } else {
+    set(P.gLow.gain, 0, 0.09);
+    set(P.gMid.gain, 0, 0.12);
+    set(P.gHi.gain, 0, 0.35);   // 高域のシューは湯気の名残として長めに残す
+    set(P.turbG.gain, 0, 0.1);
+  }
 }
 
 function bubbleBlip() {
@@ -927,15 +1078,17 @@ function bubbleBlip() {
   const c = audio.ctx, now = c.currentTime;
   const o = c.createOscillator();
   const g = c.createGain();
-  const f = rnd(320, 780);
+  // 実際の水泡は弾ける瞬間に音程が「上がる」
+  const f = rnd(240, 700);
+  const dur = rnd(0.05, 0.12);
   o.type = 'sine';
   o.frequency.setValueAtTime(f, now);
-  o.frequency.exponentialRampToValueAtTime(f * 0.72, now + 0.09);
+  o.frequency.exponentialRampToValueAtTime(f * rnd(1.5, 2.3), now + rnd(0.04, 0.1));
   g.gain.setValueAtTime(0, now);
-  g.gain.linearRampToValueAtTime(rnd(0.015, 0.04), now + 0.015);
-  g.gain.exponentialRampToValueAtTime(0.0008, now + rnd(0.06, 0.13));
+  g.gain.linearRampToValueAtTime(rnd(0.012, 0.035), now + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0006, now + dur);
   o.connect(g); g.connect(audio.master);
-  o.start(now); o.stop(now + 0.16);
+  o.start(now); o.stop(now + dur + 0.03);
 }
 
 function birdChirp() {
@@ -1006,7 +1159,7 @@ canvas.addEventListener('pointerdown', (e) => {
   if (pour.active) return;                 // 2本目の指は無視
   pour.active = true;
   pour.pointerId = e.pointerId;
-  pour.x = e.clientX; pour.y = e.clientY;
+  pour.x = e.clientX / ZOOM; pour.y = e.clientY / ZOOM;
   try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   unlockAudio();
   setPouringSound(true);
@@ -1014,7 +1167,7 @@ canvas.addEventListener('pointerdown', (e) => {
 
 canvas.addEventListener('pointermove', (e) => {
   if (!pour.active || e.pointerId !== pour.pointerId) return;
-  pour.x = e.clientX; pour.y = e.clientY;
+  pour.x = e.clientX / ZOOM; pour.y = e.clientY / ZOOM;
 });
 
 function endPour(e) {
@@ -1122,11 +1275,18 @@ function update(dt, time) {
       ringTimer = 0.15;
       rings.push({ x: pour.x, y: pour.y, age: 0, life: 0.5 });
     }
-    // ぽこぽこ音
+    // ぽこぽこ音(たまに連泡)
     audio.nextBubble -= dt;
     if (audio.nextBubble <= 0) {
-      audio.nextBubble = rnd(0.05, 0.16);
+      audio.nextBubble = rnd(0.04, 0.14);
       bubbleBlip();
+      if (Math.random() < 0.3) bubbleBlip();
+    }
+    // 水流の当たり方が変わる感じ(中域の中心周波数をゆっくり彷徨わせる)
+    audio.nextDrift -= dt;
+    if (audio.nextDrift <= 0 && audio.ready) {
+      audio.nextDrift = rnd(0.2, 0.4);
+      audio.pour.bpMid.frequency.setTargetAtTime(rnd(850, 1500), audio.ctx.currentTime, 0.15);
     }
   }
   if (lingering) {
@@ -1234,14 +1394,15 @@ function frame(ms) {
 /* ---------------- リサイズ ---------------- */
 function resize() {
   const oldW = W, oldH = H;
-  W = window.innerWidth;
-  H = window.innerHeight;
+  W = window.innerWidth / ZOOM;
+  H = window.innerHeight / ZOOM;
   DPR = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.max(1, Math.round(W * DPR));
-  canvas.height = Math.max(1, Math.round(H * DPR));
-  canvas.style.width = W + 'px';
-  canvas.style.height = H + 'px';
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  RES = DPR * ZOOM;
+  canvas.width = Math.max(1, Math.round(window.innerWidth * DPR));
+  canvas.height = Math.max(1, Math.round(window.innerHeight * DPR));
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(RES, 0, 0, RES, 0, 0);
   buildVignette();
   if (oldW > 0 && oldH > 0) {
     const fx = W / oldW, fy = H / oldH;
@@ -1262,8 +1423,8 @@ function scheduleRebuild() {
   clearTimeout(rebuildTimer);
   rebuildTimer = setTimeout(() => {
     if (needGravelRebuild()) buildGravel();
-    if (wetCanvas.width !== Math.max(1, Math.round(W * DPR)) ||
-        wetCanvas.height !== Math.max(1, Math.round(H * DPR))) buildWet();
+    if (wetCanvas.width !== Math.max(1, Math.round(W * RES)) ||
+        wetCanvas.height !== Math.max(1, Math.round(H * RES))) buildWet();
   }, 220);
 }
 let resizeQueued = false;
