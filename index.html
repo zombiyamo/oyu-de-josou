@@ -197,6 +197,7 @@ const LOCALES = {
   ja: {
     title: 'お湯de除草', subtitle: '〜砂利の庭〜',
     day: (n) => `${n}日目`,
+    clock: (h) => `${h}時`,
     killed: (n) => `枯らした草 ${n}本`,
     howToTitle: '🫖 あそびかた',
     howTo: [
@@ -244,6 +245,7 @@ const LOCALES = {
   en: {
     title: 'Hot Water Weeding', subtitle: '– Gravel Garden –',
     day: (n) => `Day ${n}`,
+    clock: (h) => h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`,
     killed: (n) => `Weeds cleared: ${n}`,
     howToTitle: '🫖 How to Play',
     howTo: [
@@ -291,6 +293,7 @@ const LOCALES = {
   zh: {
     title: '热水除草', subtitle: '〜砾石庭院〜',
     day: (n) => `第${n}天`,
+    clock: (h) => `${h}时`,
     killed: (n) => `已除草 ${n} 株`,
     howToTitle: '🫖 玩法说明',
     howTo: [
@@ -338,6 +341,7 @@ const LOCALES = {
   ko: {
     title: '뜨거운 물 제초', subtitle: '〜자갈 정원〜',
     day: (n) => `${n}일째`,
+    clock: (h) => `${h}시`,
     killed: (n) => `제거한 잡초 ${n}개`,
     howToTitle: '🫖 놀이 방법',
     howTo: [
@@ -2127,10 +2131,7 @@ function gameClock() {
       break;
     }
   }
-  h %= 24;
-  const hh = Math.floor(h);
-  const mm = Math.floor(((h - hh) * 60) / 10) * 10;   // 10分刻み
-  return `${hh}:${String(mm).padStart(2, '0')}`;
+  return L.clock(Math.floor(h % 24));   // 時のみ(分まで出すと忙しない)
 }
 let lastClock = '';
 
