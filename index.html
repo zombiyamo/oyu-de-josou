@@ -105,6 +105,7 @@
   .card canvas { width: 64px; height: 64px; }
   .card .nm { font-size: 12px; font-weight: 700; margin-top: 2px; }
   .card .ct { font-size: 11px; opacity: .75; }
+  .card .desc { font-size: 10.5px; opacity: .6; margin-top: 3px; line-height: 1.45; }
   .card.locked { opacity: .55; }
   .card .q { font-size: 30px; line-height: 64px; height: 64px; }
   #hint {
@@ -240,6 +241,15 @@ const LOCALES = {
       clover: 'シロツメクサ', oobako: 'オオバコ', dokudami: 'ドクダミ', enokoro: 'エノコログサ',
       sumire: 'スミレ', koke: 'ゼニゴケ', tsuyukusa: 'ツユクサ',
       yotsuba: '四つ葉のクローバー', nijiyotsuba: '虹色の四つ葉のクローバー'
+    },
+    descs: {
+      wakakusa: 'さっとかけるだけですぐ枯れる', runner: '匍匐茎で連なって広がる',
+      katabami: '広い範囲にパラパラ群生する', rosette: '少し多めにかける必要がある',
+      clover: '密なマットで群生する', oobako: '踏まれ強くやや頑丈',
+      dokudami: 'しっかりかけないと根が残って復活する', enokoro: 'ねこじゃらし。ふわふわの穂',
+      sumire: '枯らすのが少し忍びない紫の花', koke: '熱湯に一番弱い',
+      tsuyukusa: '朝に咲く青い花', yotsuba: 'めったに生えない幸運の草',
+      nijiyotsuba: 'この世に存在しない幻の草'
     }
   },
   en: {
@@ -288,6 +298,15 @@ const LOCALES = {
       clover: 'White Clover', oobako: 'Plantain', dokudami: 'Chameleon Plant', enokoro: 'Foxtail',
       sumire: 'Violet', koke: 'Liverwort', tsuyukusa: 'Dayflower',
       yotsuba: 'Four-Leaf Clover', nijiyotsuba: 'Rainbow Four-Leaf Clover'
+    },
+    descs: {
+      wakakusa: 'Withers with just a splash', runner: 'Spreads by creeping runners',
+      katabami: 'Scatters over a wide area', rosette: 'Needs a bit more hot water',
+      clover: 'Forms dense mats', oobako: 'As tough as its trampled reputation',
+      dokudami: 'Regrows from roots unless soaked well', enokoro: 'Fluffy foxtail spikes',
+      sumire: 'Purple flowers you almost hate to kill', koke: 'Weakest to hot water',
+      tsuyukusa: 'Blue morning flowers', yotsuba: 'A rare lucky find',
+      nijiyotsuba: 'A legendary weed not of this world'
     }
   },
   zh: {
@@ -336,6 +355,15 @@ const LOCALES = {
       clover: '白车轴草', oobako: '车前草', dokudami: '鱼腥草', enokoro: '狗尾草',
       sumire: '堇菜', koke: '地钱', tsuyukusa: '鸭跖草',
       yotsuba: '四叶草', nijiyotsuba: '彩虹四叶草'
+    },
+    descs: {
+      wakakusa: '浇一下就枯', runner: '匍匐茎蔓延成片',
+      katabami: '大范围零星群生', rosette: '需要多浇一点',
+      clover: '长成致密草垫', oobako: '耐踩且较顽强',
+      dokudami: '不浇透会从根部复活', enokoro: '毛茸茸的狗尾草',
+      sumire: '开紫花,让人下不了手', koke: '最怕热水',
+      tsuyukusa: '清晨的蓝花', yotsuba: '罕见的幸运草',
+      nijiyotsuba: '世上不存在的梦幻之草'
     }
   },
   ko: {
@@ -384,6 +412,15 @@ const LOCALES = {
       clover: '토끼풀', oobako: '질경이', dokudami: '약모밀', enokoro: '강아지풀',
       sumire: '제비꽃', koke: '우산이끼', tsuyukusa: '닭의장풀',
       yotsuba: '네잎클로버', nijiyotsuba: '무지개 네잎클로버'
+    },
+    descs: {
+      wakakusa: '살짝만 부어도 시든다', runner: '기는줄기로 이어져 퍼진다',
+      katabami: '넓게 흩어져 자란다', rosette: '조금 더 부어야 한다',
+      clover: '빽빽한 매트를 이룬다', oobako: '밟혀도 강한 편',
+      dokudami: '흠뻑 붓지 않으면 뿌리에서 부활', enokoro: '복슬복슬한 강아지풀',
+      sumire: '보라 꽃이 예뻐 망설여진다', koke: '뜨거운 물에 가장 약하다',
+      tsuyukusa: '아침에 피는 파란 꽃', yotsuba: '좀처럼 없는 행운의 풀',
+      nijiyotsuba: '이 세상에 없는 환상의 풀'
     }
   }
 };
@@ -2038,7 +2075,9 @@ function buildBook() {
     card.className = 'card' + (unlocked ? '' : ' locked');
     if (unlocked) {
       const n = killsByType[key] || 0;
-      card.innerHTML = `<div class="nm">${L.names[key] || t.name}</div><div class="ct">${L.cleared(n)}</div>`;
+      card.innerHTML = `<div class="nm">${L.names[key] || t.name}</div>` +
+        `<div class="ct">${L.cleared(n)}</div>` +
+        `<div class="ct desc">${L.descs[key] || ''}</div>`;
       const cnv = document.createElement('canvas');
       card.insertBefore(cnv, card.firstChild);
       renderTypeIcon(cnv, key);
@@ -2118,34 +2157,25 @@ let elapsed = 0;
 let day = 1;
 let spawnTimer = rnd(2, 5);
 
-// 光のフェーズ(朝焼け・昼・夕焼け・夜)に合わせたゲーム内時刻
-function gameClock() {
+// ゲーム内時刻は完全に等速(1日=30秒を24時間に均等割り。5:00スタート)
+function gameHour() {
   const t = (elapsed % DAY_LEN) / DAY_LEN;
-  const seg = [[0, 5], [0.12, 8], [0.68, 17], [0.86, 19], [1, 29]];   // [進行度, 時]
-  let h = 5;
-  for (let i = 1; i < seg.length; i++) {
-    if (t <= seg[i][0]) {
-      const [t0, h0] = seg[i - 1];
-      const [t1, h1] = seg[i];
-      h = h0 + (h1 - h0) * ((t - t0) / (t1 - t0));
-      break;
-    }
-  }
-  return L.clock(Math.floor(h % 24));   // 時のみ(分まで出すと忙しない)
+  return 5 + t * 24;   // 5:00〜29:00
+}
+function gameClock() {
+  return L.clock(Math.floor(gameHour() % 24));   // 時のみ(分まで出すと忙しない)
 }
 let lastClock = '';
 
 function dayTint() {
-  const t = (elapsed % DAY_LEN) / DAY_LEN;
-  // 朝焼け → 昼 → 夕焼け → 短い夜
+  const h = gameHour();
+  // 朝焼け(5-8時) → 昼 → 夕焼け(17-19時半) → 夜(19時半-翌5時)
   let color = null, alpha = 0;
-  if (t < 0.12) { color = '255,185,120'; alpha = 0.09 * (1 - t / 0.12); }
-  else if (t > 0.68 && t <= 0.86) {
-    const k = (t - 0.68) / 0.18;
-    color = '255,150,85'; alpha = 0.11 * Math.sin(k * Math.PI);
-  } else if (t > 0.86) {
-    const k = (t - 0.86) / 0.14;
-    color = '55,72,120'; alpha = 0.16 * Math.sin(k * Math.PI);
+  if (h < 8) { color = '255,185,120'; alpha = 0.09 * (1 - (h - 5) / 3); }
+  else if (h >= 17 && h < 19.5) {
+    color = '255,150,85'; alpha = 0.11 * Math.sin((h - 17) / 2.5 * Math.PI);
+  } else if (h >= 19.5) {
+    color = '55,72,120'; alpha = 0.12 * Math.sin((h - 19.5) / 9.5 * Math.PI);
   }
   if (color && alpha > 0.004) {
     ctx.fillStyle = `rgba(${color},${alpha.toFixed(3)})`;
