@@ -203,8 +203,9 @@ const LOCALES = {
     ],
     obGoal: 'この庭には、ぜんぶで13種類の雑草が生えるらしい。最後のひとつは…?',
     obStart: 'はじめる',
-    nextUnlock: (n) => `あと${n}本で、新しい草に出会えます`,
+    nextUnlock: (n) => `次の新種まで あと${n}本`,
     allUnlocked: '13種すべてに出会いました。図鑑コンプリート!🎉',
+    hudComplete: 'コンプリート🎉',
     reset: '除草の記録をリセット',
     resetConfirm: '本当にリセットする?(もう一度押す)',
     resetDone: '除草の記録をリセットしました。雑草の解放も最初からです',
@@ -244,8 +245,9 @@ const LOCALES = {
     ],
     obGoal: 'They say 13 kinds of weeds grow in this garden. The last one…?',
     obStart: 'Start',
-    nextUnlock: (n) => `Clear ${n} more to meet a new weed`,
+    nextUnlock: (n) => `Next weed: ${n} to go`,
     allUnlocked: 'You\'ve met all 13. Collection complete! 🎉',
+    hudComplete: 'Complete 🎉',
     reset: 'Reset weeding records',
     resetConfirm: 'Really reset? (tap again)',
     resetDone: 'Records reset. Species unlocks start over',
@@ -285,8 +287,9 @@ const LOCALES = {
     ],
     obGoal: '据说这座庭院里一共会长出13种杂草。最后一种是…?',
     obStart: '开始',
-    nextUnlock: (n) => `再除 ${n} 株,就能遇见新的草`,
+    nextUnlock: (n) => `距新品种还差 ${n} 株`,
     allUnlocked: '13种全部遇见,图鉴完成!🎉',
+    hudComplete: '已集齐🎉',
     reset: '重置除草记录',
     resetConfirm: '确定要重置?(再点一次)',
     resetDone: '记录已重置,品种解锁重新开始',
@@ -326,8 +329,9 @@ const LOCALES = {
     ],
     obGoal: '이 정원에는 모두 13종의 잡초가 자란다고 합니다. 마지막 한 종은…?',
     obStart: '시작하기',
-    nextUnlock: (n) => `${n}개 더 제거하면 새로운 풀을 만날 수 있어요`,
+    nextUnlock: (n) => `새 품종까지 앞으로 ${n}개`,
     allUnlocked: '13종 모두 만났습니다. 도감 완성! 🎉',
+    hudComplete: '도감 완성🎉',
     reset: '제초 기록 초기화',
     resetConfirm: '정말 초기화할까요? (한 번 더 탭)',
     resetDone: '기록이 초기화되었습니다. 잡초 해금도 처음부터입니다',
@@ -1851,14 +1855,10 @@ function renderTypeIcon(cnv, typeKey) {
 }
 
 function buildBook() {
-  // 次の目標(あと何本で新種か)
-  let nextAt = Infinity;
-  for (const key in WEED_TYPES) {
-    const ua = WEED_TYPES[key].unlockAt;
-    if (ua > totalKilled && ua < nextAt) nextAt = ua;
-  }
+  // 累計はここで見せる(HUDは次の新種までのカウント)
+  const done = Object.keys(WEED_TYPES).every((k) => totalKilled >= WEED_TYPES[k].unlockAt);
   document.getElementById('bookNext').textContent =
-    nextAt === Infinity ? L.allUnlocked : L.nextUnlock(nextAt - totalKilled);
+    L.killed(totalKilled) + (done ? ' — ' + L.allUnlocked : '');
 
   const grid = document.getElementById('bookGrid');
   grid.innerHTML = '';
@@ -2174,7 +2174,13 @@ function render(time) {
 
 function updateHud() {
   elDay.textContent = L.day(day);
-  elCount.textContent = L.killed(totalKilled);
+  // 右上には「次の新種まであと何本」を出す(累計は図鑑で見られる)
+  let nextAt = Infinity;
+  for (const key in WEED_TYPES) {
+    const ua = WEED_TYPES[key].unlockAt;
+    if (ua > totalKilled && ua < nextAt) nextAt = ua;
+  }
+  elCount.textContent = nextAt === Infinity ? L.hudComplete : L.nextUnlock(nextAt - totalKilled);
 }
 
 /* ---------------- メインループ ---------------- */
