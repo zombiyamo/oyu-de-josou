@@ -2114,6 +2114,26 @@ let elapsed = 0;
 let day = 1;
 let spawnTimer = rnd(2, 5);
 
+// 光のフェーズ(朝焼け・昼・夕焼け・夜)に合わせたゲーム内時刻
+function gameClock() {
+  const t = (elapsed % DAY_LEN) / DAY_LEN;
+  const seg = [[0, 5], [0.12, 8], [0.68, 17], [0.86, 19], [1, 29]];   // [進行度, 時]
+  let h = 5;
+  for (let i = 1; i < seg.length; i++) {
+    if (t <= seg[i][0]) {
+      const [t0, h0] = seg[i - 1];
+      const [t1, h1] = seg[i];
+      h = h0 + (h1 - h0) * ((t - t0) / (t1 - t0));
+      break;
+    }
+  }
+  h %= 24;
+  const hh = Math.floor(h);
+  const mm = Math.floor(((h - hh) * 60) / 10) * 10;   // 10分刻み
+  return `${hh}:${String(mm).padStart(2, '0')}`;
+}
+let lastClock = '';
+
 function dayTint() {
   const t = (elapsed % DAY_LEN) / DAY_LEN;
   // 朝焼け → 昼 → 夕焼け → 短い夜
@@ -2367,6 +2387,13 @@ function update(dt, time) {
     }
   }
 
+  // 時計の表示更新(10分刻みで変わったときだけ)
+  const clk = gameClock();
+  if (clk !== lastClock) {
+    lastClock = clk;
+    updateHud();
+  }
+
   fadeWet(dt);
   updateParticles(dt, time);
 }
@@ -2550,7 +2577,7 @@ function render(time) {
 }
 
 function updateHud() {
-  elDay.textContent = L.day(day);
+  elDay.textContent = `${L.day(day)} ${lastClock || gameClock()}`;
   // 右上には「次の新種まであと何本」を出す(累計は図鑑で見られる)
   let nextAt = Infinity;
   for (const key in WEED_TYPES) {
