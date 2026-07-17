@@ -106,15 +106,8 @@
 <div id="overlay" class="hidden">
   <div class="panel hidden" id="helpPanel">
     <button class="closex" data-close aria-label="閉じる">✕</button>
-    <h2>🫖 あそびかた</h2>
-    <ul>
-      <li><b>押している間</b>、やかんから熱湯が出ます</li>
-      <li>お湯がかかった草は色が変わり、ゲーム内の数日(数十秒)かけてだんだん枯れていきます</li>
-      <li>枯れ草はその場に残ります。<b>タップ</b>するとホロッと崩れて片付きます</li>
-      <li>種類によってしぶとさが違います。中には根が残って復活するやつも…</li>
-      <li><b>除草した数が増えると、新しい種類の雑草</b>が生えてくるようになります</li>
-      <li>📖ボタンで雑草コレクションを見られます</li>
-    </ul>
+    <h2 id="helpTitle">🫖 あそびかた</h2>
+    <ul id="helpList"></ul>
     <button id="startBtn">OK</button>
     <div id="resetRow">
       <button id="resetBtn">除草の記録をリセット</button>
@@ -122,7 +115,7 @@
   </div>
   <div class="panel hidden" id="bookPanel">
     <button class="closex" data-close aria-label="閉じる">✕</button>
-    <h2>📖 雑草コレクション</h2>
+    <h2 id="bookTitle">📖 雑草コレクション</h2>
     <div id="bookGrid"></div>
   </div>
 </div>
@@ -164,6 +157,150 @@ function saveLS(key, value) {
 let totalKilled = loadLS('oyu_totalKilled', 0);
 let killsByType = loadLS('oyu_killsByType', {});
 let muted = loadLS('oyu_muted', false);
+
+/* ---------------- 多言語対応 ----------------
+   ブラウザの言語設定に合わせてUIを切り替える。未対応言語は英語。 */
+const LOCALES = {
+  ja: {
+    title: 'お湯de除草', subtitle: '〜砂利の庭〜',
+    day: (n) => `${n}日目`,
+    killed: (n) => `枯らした草 ${n}本`,
+    howToTitle: '🫖 あそびかた',
+    howTo: [
+      '<b>押している間</b>、やかんから熱湯が出ます',
+      'お湯がかかった草は色が変わり、ゲーム内の数日(数十秒)かけてだんだん枯れていきます',
+      '枯れ草はその場に残ります。<b>タップ</b>するとホロッと崩れて片付きます',
+      '種類によってしぶとさが違います。中には根が残って復活するやつも…',
+      '<b>除草した数が増えると、新しい種類の雑草</b>が生えてくるようになります',
+      '📖ボタンで雑草コレクションを見られます'
+    ],
+    ok: 'OK',
+    reset: '除草の記録をリセット',
+    resetConfirm: '本当にリセットする?(もう一度押す)',
+    resetDone: '除草の記録をリセットしました。雑草の解放も最初からです',
+    bookTitle: '📖 雑草コレクション',
+    cleared: (n) => `枯らした ${n}本`,
+    unlockAt: (n) => `除草${n}本で出現`,
+    unlockToast: (name) => `🌱 新しい雑草「${name}」が生えてくるようになった…`,
+    pourGuide: '押している間、やかんからお湯が出ます 🫖',
+    huskHint: '枯れ草はタップするとホロッと片付きます',
+    names: {
+      wakakusa: '若草', runner: 'メヒシバ', katabami: 'カタバミ', rosette: 'タンポポ',
+      clover: 'シロツメクサ', oobako: 'オオバコ', dokudami: 'ドクダミ', enokoro: 'エノコログサ',
+      sumire: 'スミレ', koke: 'ゼニゴケ', tsuyukusa: 'ツユクサ',
+      yotsuba: '四つ葉のクローバー', nijiyotsuba: '虹色の四つ葉のクローバー'
+    }
+  },
+  en: {
+    title: 'Hot Water Weeding', subtitle: '– Gravel Garden –',
+    day: (n) => `Day ${n}`,
+    killed: (n) => `Weeds cleared: ${n}`,
+    howToTitle: '🫖 How to Play',
+    howTo: [
+      '<b>Press and hold</b> to pour hot water from the kettle',
+      'Scalded weeds change color, then wither over a few in-game days (tens of seconds)',
+      'Withered weeds stay where they are — <b>tap</b> them to crumble them away',
+      'Some weeds are tougher than others. A few regrow from surviving roots…',
+      '<b>The more weeds you clear, the more new species</b> start to appear',
+      'Check your weed collection with the 📖 button'
+    ],
+    ok: 'OK',
+    reset: 'Reset weeding records',
+    resetConfirm: 'Really reset? (tap again)',
+    resetDone: 'Records reset. Species unlocks start over',
+    bookTitle: '📖 Weed Collection',
+    cleared: (n) => `Cleared: ${n}`,
+    unlockAt: (n) => `Unlocks at ${n} cleared`,
+    unlockToast: (name) => `🌱 A new weed has appeared: ${name}`,
+    pourGuide: 'Press and hold to pour hot water 🫖',
+    huskHint: 'Tap withered weeds to clear them away',
+    names: {
+      wakakusa: 'Young Grass', runner: 'Crabgrass', katabami: 'Wood Sorrel', rosette: 'Dandelion',
+      clover: 'White Clover', oobako: 'Plantain', dokudami: 'Chameleon Plant', enokoro: 'Foxtail',
+      sumire: 'Violet', koke: 'Liverwort', tsuyukusa: 'Dayflower',
+      yotsuba: 'Four-Leaf Clover', nijiyotsuba: 'Rainbow Four-Leaf Clover'
+    }
+  },
+  zh: {
+    title: '热水除草', subtitle: '〜砾石庭院〜',
+    day: (n) => `第${n}天`,
+    killed: (n) => `已除草 ${n} 株`,
+    howToTitle: '🫖 玩法说明',
+    howTo: [
+      '<b>按住不放</b>,水壶就会倒出热水',
+      '被烫到的草会变色,并在游戏内几天(几十秒)里逐渐枯萎',
+      '枯草会留在原地,<b>点一下</b>就会碎掉清理',
+      '不同杂草的顽强程度不同,有的根还活着会再长出来…',
+      '<b>除草数量越多,出现的新品种就越多</b>',
+      '点📖按钮查看杂草图鉴'
+    ],
+    ok: 'OK',
+    reset: '重置除草记录',
+    resetConfirm: '确定要重置?(再点一次)',
+    resetDone: '记录已重置,品种解锁重新开始',
+    bookTitle: '📖 杂草图鉴',
+    cleared: (n) => `已除 ${n} 株`,
+    unlockAt: (n) => `除草${n}株后出现`,
+    unlockToast: (name) => `🌱 新杂草「${name}」开始出现了…`,
+    pourGuide: '按住即可倒热水 🫖',
+    huskHint: '点一下枯草即可清理',
+    names: {
+      wakakusa: '嫩草', runner: '马唐', katabami: '酢浆草', rosette: '蒲公英',
+      clover: '白车轴草', oobako: '车前草', dokudami: '鱼腥草', enokoro: '狗尾草',
+      sumire: '堇菜', koke: '地钱', tsuyukusa: '鸭跖草',
+      yotsuba: '四叶草', nijiyotsuba: '彩虹四叶草'
+    }
+  },
+  ko: {
+    title: '뜨거운 물 제초', subtitle: '〜자갈 정원〜',
+    day: (n) => `${n}일째`,
+    killed: (n) => `제거한 잡초 ${n}개`,
+    howToTitle: '🫖 놀이 방법',
+    howTo: [
+      '<b>누르고 있는 동안</b> 주전자에서 뜨거운 물이 나옵니다',
+      '뜨거운 물이 닿은 풀은 색이 변하고, 게임 내 며칠(수십 초)에 걸쳐 시들어 갑니다',
+      '시든 풀은 그 자리에 남습니다. <b>탭</b>하면 바스러지며 치워집니다',
+      '종류마다 끈질김이 다릅니다. 뿌리가 살아남아 다시 자라는 것도…',
+      '<b>제거한 잡초가 늘어나면 새로운 종류</b>가 자라나기 시작합니다',
+      '📖 버튼으로 잡초 도감을 볼 수 있습니다'
+    ],
+    ok: 'OK',
+    reset: '제초 기록 초기화',
+    resetConfirm: '정말 초기화할까요? (한 번 더 탭)',
+    resetDone: '기록이 초기화되었습니다. 잡초 해금도 처음부터입니다',
+    bookTitle: '📖 잡초 도감',
+    cleared: (n) => `제거 ${n}개`,
+    unlockAt: (n) => `제초 ${n}개 달성 시 등장`,
+    unlockToast: (name) => `🌱 새로운 잡초 '${name}'이(가) 자라나기 시작했다…`,
+    pourGuide: '길게 누르면 뜨거운 물이 나옵니다 🫖',
+    huskHint: '시든 풀은 탭하면 치워집니다',
+    names: {
+      wakakusa: '어린 풀', runner: '바랭이', katabami: '괭이밥', rosette: '민들레',
+      clover: '토끼풀', oobako: '질경이', dokudami: '약모밀', enokoro: '강아지풀',
+      sumire: '제비꽃', koke: '우산이끼', tsuyukusa: '닭의장풀',
+      yotsuba: '네잎클로버', nijiyotsuba: '무지개 네잎클로버'
+    }
+  }
+};
+const browserLang = (navigator.language || 'en').toLowerCase();
+const L = browserLang.startsWith('ja') ? LOCALES.ja :
+          browserLang.startsWith('zh') ? LOCALES.zh :
+          browserLang.startsWith('ko') ? LOCALES.ko :
+          LOCALES.en;
+
+function applyLocale() {
+  document.documentElement.lang = browserLang.startsWith('ja') ? 'ja' :
+    browserLang.startsWith('zh') ? 'zh' : browserLang.startsWith('ko') ? 'ko' : 'en';
+  document.title = `${L.title} ${L.subtitle}`;
+  document.getElementById('title').innerHTML =
+    `${L.title}<small>${L.subtitle}</small>`;
+  document.getElementById('helpTitle').textContent = L.howToTitle;
+  document.getElementById('helpList').innerHTML =
+    L.howTo.map((s) => `<li>${s}</li>`).join('');
+  document.getElementById('startBtn').textContent = L.ok;
+  document.getElementById('resetBtn').textContent = L.reset;
+  document.getElementById('bookTitle').textContent = L.bookTitle;
+}
 
 /* ---------------- 砂利の背景 ---------------- */
 let gravelCanvas = null;
@@ -1587,11 +1724,11 @@ let resetArmTimer = 0;
 elReset.addEventListener('click', () => {
   if (!elReset.classList.contains('arm')) {
     elReset.classList.add('arm');
-    elReset.textContent = '本当にリセットする?(もう一度押す)';
+    elReset.textContent = L.resetConfirm;
     clearTimeout(resetArmTimer);
     resetArmTimer = setTimeout(() => {
       elReset.classList.remove('arm');
-      elReset.textContent = '除草の記録をリセット';
+      elReset.textContent = L.reset;
     }, 4000);
     return;
   }
@@ -1603,9 +1740,9 @@ elReset.addEventListener('click', () => {
   saveLS('oyu_killsByType', {});
   updateHud();
   elReset.classList.remove('arm');
-  elReset.textContent = '除草の記録をリセット';
+  elReset.textContent = L.reset;
   closePanel();
-  showToast('除草の記録をリセットしました。雑草の解放も最初からです');
+  showToast(L.resetDone);
 });
 elOverlay.addEventListener('click', (e) => {
   if (e.target === elOverlay || e.target.hasAttribute('data-close')) closePanel();
@@ -1640,12 +1777,12 @@ function buildBook() {
     card.className = 'card' + (unlocked ? '' : ' locked');
     if (unlocked) {
       const n = killsByType[key] || 0;
-      card.innerHTML = `<div class="nm">${t.name}</div><div class="ct">枯らした ${n}本</div>`;
+      card.innerHTML = `<div class="nm">${L.names[key] || t.name}</div><div class="ct">${L.cleared(n)}</div>`;
       const cnv = document.createElement('canvas');
       card.insertBefore(cnv, card.firstChild);
       renderTypeIcon(cnv, key);
     } else {
-      card.innerHTML = `<div class="q">❓</div><div class="nm">???</div><div class="ct">除草${t.unlockAt}本で出現</div>`;
+      card.innerHTML = `<div class="q">❓</div><div class="nm">???</div><div class="ct">${L.unlockAt(t.unlockAt)}</div>`;
     }
     grid.appendChild(card);
   }
@@ -1837,7 +1974,7 @@ function update(dt, time) {
         for (const key in WEED_TYPES) {
           const tt = WEED_TYPES[key];
           if (tt.unlockAt > 0 && prev < tt.unlockAt && totalKilled >= tt.unlockAt) {
-            showToast(`🌱 新しい雑草「${tt.name}」が生えてくるようになった…`);
+            showToast(L.unlockToast(L.names[key] || tt.name));
             for (let s = 0; s < 2; s++) spawnWeed({ type: key });
           }
         }
@@ -1852,7 +1989,7 @@ function update(dt, time) {
       w.wither = Math.min(1, w.wither + dt * strength / (t.witherDur * (0.7 + 0.45 * w.size)));
       if (w.wither >= 1 && !huskHintShown) {
         huskHintShown = true;
-        showToast('枯れ草はタップするとホロッと片付きます');
+        showToast(L.huskHint);
       }
     } else {
       // 少ししかかかっていない葉はゆっくり回復する
@@ -1944,8 +2081,8 @@ function render(time) {
 }
 
 function updateHud() {
-  elDay.textContent = `${day}日目`;
-  elCount.textContent = `枯らした草 ${totalKilled}本`;
+  elDay.textContent = L.day(day);
+  elCount.textContent = L.killed(totalKilled);
 }
 
 /* ---------------- メインループ ---------------- */
@@ -2024,11 +2161,12 @@ buildSteamSprite();
 buildStoneSprites();
 resize();
 initGarden();
+applyLocale();
 applyMute();
 updateHud();
 // 起動時は軽いトースト案内だけ(詳しいあそびかたは右上の?ボタン)
 pourGuideActive = true;
-showToast('押している間、やかんからお湯が出ます 🫖', 9000);
+showToast(L.pourGuide, 9000);
 requestAnimationFrame((ms) => { lastTime = ms / 1000; requestAnimationFrame(frame); });
 </script>
 </body>
