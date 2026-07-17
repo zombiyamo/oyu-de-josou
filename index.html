@@ -106,7 +106,7 @@
       <li><b>除草した数が増えると、新しい種類の雑草</b>が生えてくるようになります</li>
       <li>📖ボタンで雑草コレクションを見られます</li>
     </ul>
-    <button id="startBtn">はじめる</button>
+    <button id="startBtn">OK</button>
   </div>
   <div class="panel hidden" id="bookPanel">
     <button class="closex" data-close aria-label="閉じる">✕</button>
@@ -425,6 +425,41 @@ const WEED_TYPES = {
     scaldThreshold: 0.72, witherDur: 60,
     leafCount: [5, 8], leafLen: [16, 25], leafWidth: [12, 18],
     weight: 0.11
+  },
+  enokoro: {
+    name: 'エノコログサ', unlockAt: 100,
+    hue: 95, sat: 48, light: 33,
+    scaldThreshold: 0.3, witherDur: 26,
+    leafCount: [7, 11], leafLen: [15, 30], leafWidth: [1.8, 2.8],
+    weight: 0.1
+  },
+  sumire: {
+    name: 'スミレ', unlockAt: 140,
+    hue: 130, sat: 40, light: 24,
+    scaldThreshold: 0.4, witherDur: 32,
+    leafCount: [4, 6], leafLen: [12, 19], leafWidth: [10, 14],
+    weight: 0.07
+  },
+  koke: {
+    name: 'ゼニゴケ', unlockAt: 190,
+    hue: 85, sat: 50, light: 30,
+    scaldThreshold: 0.18, witherDur: 15,
+    leafCount: [5, 8], leafLen: [10, 18], leafWidth: [7, 11],
+    weight: 0.09
+  },
+  tsuyukusa: {
+    name: 'ツユクサ', unlockAt: 250,
+    hue: 115, sat: 45, light: 30,
+    scaldThreshold: 0.42, witherDur: 34,
+    leafCount: [5, 8], leafLen: [18, 30], leafWidth: [7, 10],
+    weight: 0.07
+  },
+  yotsuba: {
+    name: '四つ葉のクローバー', unlockAt: 350,
+    hue: 74, sat: 56, light: 38,
+    scaldThreshold: 0.3, witherDur: 24,
+    leafCount: [3, 5], leafLen: [11, 16], leafWidth: [9, 12],
+    weight: 0.015
   }
 };
 
@@ -475,7 +510,9 @@ function makeWeed(x, y, typeKey, opts = {}) {
     rootHp: typeKey === 'dokudami' ? (opts.rootHp !== undefined ? opts.rootHp : irnd(1, 2)) : 0,
     hasFlower: typeKey === 'dokudami' ? Math.random() < 0.55 :
                typeKey === 'katabami' ? Math.random() < 0.5 :
-               typeKey === 'clover' ? Math.random() < 0.35 : false,
+               typeKey === 'clover' ? Math.random() < 0.35 :
+               typeKey === 'sumire' ? Math.random() < 0.8 :
+               typeKey === 'tsuyukusa' ? Math.random() < 0.7 : false,
     swayPhase: rnd(TAU),
     radius() {
       let m = 0;
@@ -507,6 +544,7 @@ function spawnWeed(opts = {}) {
       const a = rnd(TAU);
       const d = opts.near.type === 'runner' ? rnd(18, 55) :
                 opts.near.type === 'clover' ? rnd(8, 30) :    // シロツメクサは密なマット
+                opts.near.type === 'koke' ? rnd(7, 22) :      // コケはべったり密着
                 opts.near.type === 'katabami' ? rnd(14, 62) : // カタバミは広範囲に広がる
                 rnd(10, 48);
       x = opts.near.x + Math.cos(a) * d;
@@ -705,6 +743,102 @@ function drawWeed(w, time) {
         ctx.fillStyle = hslStr(col[0] + 3, col[1], clamp(col[2] + 10 * hiFade, 4, 92));
         drawBlade(ctx, len * 0.9, width * 0.45, leaf.curve);
         break;
+      case 'enokoro': {
+        if (i < 2 && w.size > 0.5) {
+          // ねこじゃらしの穂
+          const sl = len * 1.1;
+          ctx.strokeStyle = hslStr(col[0] - 6, Math.max(0, col[1] - 12), Math.max(8, col[2] - 4));
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(2, 0);
+          ctx.quadraticCurveTo(sl * 0.55, leaf.curve * sl * 0.3, sl, leaf.curve * sl * 0.5);
+          ctx.stroke();
+          ctx.save();
+          ctx.translate(sl, leaf.curve * sl * 0.5);
+          ctx.rotate(leaf.curve * 0.45);
+          const hFade = 1 - lw * 0.5;
+          ctx.fillStyle = `hsla(62,42%,${(58 - lw * 16).toFixed(0)}%,${(0.85 * hFade).toFixed(2)})`;
+          for (let k = -3; k <= 1; k++) {
+            ctx.beginPath();
+            ctx.ellipse(k * 2.2, 0, 3.2, 2.1, 0, 0, TAU);
+            ctx.fill();
+          }
+          // ふわふわの毛
+          ctx.strokeStyle = `hsla(60,38%,66%,${(0.55 * hFade).toFixed(2)})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          for (let k = 0; k < 10; k++) {
+            const px = -8 + k * 1.7, py = (k % 2 ? -1 : 1) * 2.2;
+            ctx.moveTo(px, py * 0.4);
+            ctx.lineTo(px + 1.3, py * 2);
+          }
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          drawBlade(ctx, len, width, leaf.curve);
+          ctx.fillStyle = hslStr(col[0] + 3, col[1], clamp(col[2] + 10 * hiFade, 4, 92));
+          drawBlade(ctx, len * 0.9, width * 0.45, leaf.curve);
+        }
+        break;
+      }
+      case 'tsuyukusa':
+        // 笹のような細長い葉
+        drawTeardrop(ctx, len, width * 0.72, leaf.curve);
+        ctx.fillStyle = hslStr(col[0] + 4, col[1], clamp(col[2] + 9 * hiFade, 4, 92));
+        drawTeardrop(ctx, len * 0.85, width * 0.32, leaf.curve);
+        break;
+      case 'koke': {
+        // 平たいコケのかたまり(地面に張り付く)
+        const d = len * 0.4;
+        for (let k = 0; k < 3; k++) {
+          ctx.beginPath();
+          ctx.ellipse(d * (0.4 + k * 0.32), Math.sin(k * 5 + w.swayPhase) * width * 0.25,
+                      len * 0.34, width * 0.52, k * 0.5, 0, TAU);
+          ctx.fill();
+        }
+        ctx.fillStyle = hslStr(col[0] + 6, col[1], clamp(col[2] + 12 * hiFade, 4, 92));
+        for (let k = 0; k < 4; k++) {
+          ctx.beginPath();
+          ctx.arc(d * (0.3 + k * 0.27), Math.sin(k * 7 + w.swayPhase * 2) * width * 0.3, 1.1, 0, TAU);
+          ctx.fill();
+        }
+        break;
+      }
+      case 'sumire':
+        // 丸みのあるハート形の葉(茎は緑)
+        drawHeart(ctx, len, width, 'rgba(70,110,60,.8)', 0.18 * hiFade);
+        break;
+      case 'yotsuba': {
+        // 幸運の四つ葉。ちょっと金色がかった緑
+        const stem = len * 0.5;
+        ctx.strokeStyle = hslStr(col[0] - 4, Math.max(0, col[1] - 10), Math.max(8, col[2] - 7));
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(stem, 0);
+        ctx.stroke();
+        ctx.translate(stem, 0);
+        for (let k = 0; k < 4; k++) {
+          ctx.save();
+          ctx.rotate(-1.35 + k * 0.9);
+          const L = len * 0.5, Wd = width * 0.6;
+          ctx.beginPath();
+          ctx.ellipse(L * 0.55, 0, L * 0.5, Wd * 0.5, 0, 0, TAU);
+          ctx.fill();
+          ctx.strokeStyle = `rgba(245,250,225,${(0.45 * hiFade).toFixed(3)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(L * 0.2, 0, L * 0.4, -0.7, 0.7);
+          ctx.stroke();
+          ctx.restore();
+        }
+        // きらり
+        ctx.fillStyle = `rgba(255,250,205,${(0.8 * hiFade).toFixed(2)})`;
+        ctx.beginPath();
+        ctx.arc(len * 0.42, -len * 0.3, 1.1, 0, TAU);
+        ctx.fill();
+        break;
+      }
       case 'rosette': {
         const bc = leaf.curve;
         drawRosetteLeaf(ctx, len, width, bc);
@@ -817,7 +951,8 @@ function drawWeed(w, time) {
   }
 
   // 株元(葉が集まる中心が締まって見える)
-  if (w.type !== 'dokudami' && w.type !== 'katabami' && w.type !== 'clover' && w.type !== 'runner' && w.size > 0.15) {
+  const NO_CROWN = { dokudami: 1, katabami: 1, clover: 1, runner: 1, koke: 1, sumire: 1, yotsuba: 1 };
+  if (!NO_CROWN[w.type] && w.size > 0.15) {
     ctx.globalAlpha = dyingAlpha;
     ctx.beginPath();
     ctx.arc(w.x, w.y, 2.2 * w.size + 0.4, 0, TAU);
@@ -875,6 +1010,40 @@ function drawWeed(w, time) {
       ctx.beginPath();
       ctx.arc(0, 0, 1.4, 0, TAU);
       ctx.fillStyle = '#dfe6cf';
+      ctx.fill();
+    } else if (w.type === 'sumire') {
+      // 紫の花
+      ctx.translate(w.x + 2, w.y - 4);
+      for (let p = 0; p < 5; p++) {
+        ctx.save();
+        ctx.rotate((p / 5) * TAU + w.swayPhase);
+        ctx.beginPath();
+        ctx.ellipse(2.4, 0, 2.3, 1.4, 0, 0, TAU);
+        ctx.fillStyle = '#8a6fc0';
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, 1.1, 0, TAU);
+      ctx.fillStyle = '#f0e0a4';
+      ctx.fill();
+    } else if (w.type === 'tsuyukusa') {
+      // 青い花(丸い花びら2枚+下に小さな白)
+      ctx.translate(w.x - 2, w.y - 3);
+      ctx.fillStyle = '#4a78d8';
+      ctx.beginPath();
+      ctx.ellipse(-1.8, -1.6, 2.2, 1.9, -0.3, 0, TAU);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(1.8, -1.6, 2.2, 1.9, 0.3, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#f2f4f8';
+      ctx.beginPath();
+      ctx.ellipse(0, 1.4, 1.6, 1.1, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#e8d05a';
+      ctx.beginPath();
+      ctx.arc(0, -0.3, 0.8, 0, TAU);
       ctx.fill();
     }
     ctx.restore();
@@ -1338,11 +1507,11 @@ elMute.addEventListener('click', () => {
 
 /* ---------------- トースト・パネル ---------------- */
 let toastTimer = 0;
-function showToast(msg) {
+function showToast(msg, dur = 4200) {
   elHint.textContent = msg;
   elHint.classList.remove('hide');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => elHint.classList.add('hide'), 4200);
+  toastTimer = setTimeout(() => elHint.classList.add('hide'), dur);
 }
 
 const elOverlay = document.getElementById('overlay');
@@ -1375,7 +1544,7 @@ function renderTypeIcon(cnv, typeKey) {
   try {
     const t = WEED_TYPES[typeKey];
     const w = makeWeed(36, 38, typeKey, { size: clamp(30 / t.leafLen[1], 0.5, 1) });
-    w.hasFlower = typeKey === 'dokudami' || typeKey === 'katabami' || typeKey === 'clover';
+    w.hasFlower = ['dokudami', 'katabami', 'clover', 'sumire', 'tsuyukusa'].includes(typeKey);
     drawWeed(w, 0);
   } finally {
     ctx = mainCtx;
@@ -1404,8 +1573,15 @@ function buildBook() {
 }
 
 /* ---------------- 入力 ---------------- */
+let pourGuideActive = false;
+let huskHintShown = false;
+
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  if (pourGuideActive) {
+    pourGuideActive = false;
+    elHint.classList.add('hide');
+  }
   if (pour.active) return;                 // 2本目の指は無視
   pour.active = true;
   pour.pointerId = e.pointerId;
@@ -1592,9 +1768,13 @@ function update(dt, time) {
     } else if (w.wither >= 1) {
       // 枯れ草としてその場に残る。タップ(お湯がかかる)と崩れる
     } else if (w.scald >= t.scaldThreshold) {
-      // 枯れが進行(たっぷりかけた葉ほど早く、伸びた大株ほどしぶとい)
+      // 枯れが進行(たっぷりかけた葉ほど早く、大株ほどしぶとい)
       const strength = 0.4 + 0.6 * clamp(w.scald, 0, 1.5) / 1.5;
       w.wither = Math.min(1, w.wither + dt * strength / (t.witherDur * (0.7 + 0.45 * w.size)));
+      if (w.wither >= 1 && !huskHintShown) {
+        huskHintShown = true;
+        showToast('枯れ草はタップするとホロッと片付きます');
+      }
     } else {
       // 少ししかかかっていない葉はゆっくり回復する
       w.scald = Math.max(0, w.scald - dt * 0.02);
@@ -1719,7 +1899,9 @@ resize();
 initGarden();
 applyMute();
 updateHud();
-openPanel('help');   // 起動時にあそびかたを表示
+// 起動時は軽いトースト案内だけ(詳しいあそびかたは右上の?ボタン)
+pourGuideActive = true;
+showToast('押している間、やかんからお湯が出ます 🫖', 9000);
 requestAnimationFrame((ms) => { lastTime = ms / 1000; requestAnimationFrame(frame); });
 </script>
 </body>
