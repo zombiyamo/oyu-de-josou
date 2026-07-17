@@ -26,13 +26,52 @@
   #title small { font-weight: 400; font-size: 11px; opacity: .85; margin-left: 4px; }
   #stats { display: flex; gap: 12px; font-size: 12.5px; margin-left: auto;
     text-shadow: 0 1px 3px rgba(0,0,0,.5); white-space: nowrap; }
-  #mute {
+  .hudbtn {
     pointer-events: auto; border: 0; border-radius: 999px;
     width: 40px; height: 40px; font-size: 17px; line-height: 1;
     background: rgba(0,0,0,.35); color: #fff; cursor: pointer;
     flex: none; touch-action: manipulation;
   }
-  #mute:active { background: rgba(0,0,0,.55); }
+  .hudbtn:active { background: rgba(0,0,0,.55); }
+  #helpBtn { font-weight: 700; font-size: 18px; }
+  #hud .hudbtn + .hudbtn { margin-left: -6px; }
+  #overlay {
+    position: fixed; inset: 0; z-index: 10;
+    background: rgba(15,13,10,.55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px;
+  }
+  #overlay.hidden { display: none; }
+  .panel {
+    background: #f6f2e8; color: #3a352c;
+    border-radius: 16px; max-width: 440px; width: 100%;
+    max-height: 82vh; overflow-y: auto;
+    padding: 22px 22px 18px; position: relative;
+    box-shadow: 0 12px 40px rgba(0,0,0,.4);
+  }
+  .panel.hidden { display: none; }
+  .panel h2 { margin: 0 0 12px; font-size: 17px; }
+  .panel ul { margin: 0; padding-left: 1.3em; font-size: 13.5px; line-height: 1.9; }
+  .closex {
+    position: absolute; top: 10px; right: 10px;
+    width: 32px; height: 32px; border: 0; border-radius: 999px;
+    background: rgba(0,0,0,.08); color: #3a352c; font-size: 14px; cursor: pointer;
+  }
+  #startBtn {
+    display: block; margin: 16px auto 2px; padding: 10px 34px;
+    border: 0; border-radius: 999px; background: #5c7c4f; color: #fff;
+    font-size: 15px; cursor: pointer;
+  }
+  #bookGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .card {
+    background: rgba(255,255,255,.6); border-radius: 12px;
+    padding: 8px 6px; text-align: center;
+  }
+  .card canvas { width: 64px; height: 64px; }
+  .card .nm { font-size: 12px; font-weight: 700; margin-top: 2px; }
+  .card .ct { font-size: 11px; opacity: .75; }
+  .card.locked { opacity: .55; }
+  .card .q { font-size: 30px; line-height: 64px; height: 64px; }
   #hint {
     position: fixed; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
@@ -50,9 +89,31 @@
 <div id="hud">
   <div id="title">お湯de除草<small>〜砂利の庭〜</small></div>
   <div id="stats"><span id="day">1日目</span><span id="count">枯らした草 0本</span></div>
-  <button id="mute" aria-label="音の切り替え">🔊</button>
+  <button class="hudbtn" id="helpBtn" aria-label="あそびかた">?</button>
+  <button class="hudbtn" id="bookBtn" aria-label="雑草コレクション">📖</button>
+  <button class="hudbtn" id="mute" aria-label="音の切り替え">🔊</button>
 </div>
-<div id="hint">押している間、やかんからお湯が出ます</div>
+<div id="hint" class="hide"></div>
+<div id="overlay" class="hidden">
+  <div class="panel hidden" id="helpPanel">
+    <button class="closex" data-close aria-label="閉じる">✕</button>
+    <h2>🫖 あそびかた</h2>
+    <ul>
+      <li><b>押している間</b>、やかんから熱湯が出ます</li>
+      <li>お湯がかかった草は色が変わり、ゲーム内の数日(数十秒)かけてだんだん枯れていきます</li>
+      <li>枯れ草はその場に残ります。<b>タップ</b>するとホロッと崩れて片付きます</li>
+      <li>種類によってしぶとさが違います。中には根が残って復活するやつも…</li>
+      <li><b>除草した数が増えると、新しい種類の雑草</b>が生えてくるようになります</li>
+      <li>📖ボタンで雑草コレクションを見られます</li>
+    </ul>
+    <button id="startBtn">はじめる</button>
+  </div>
+  <div class="panel hidden" id="bookPanel">
+    <button class="closex" data-close aria-label="閉じる">✕</button>
+    <h2>📖 雑草コレクション</h2>
+    <div id="bookGrid"></div>
+  </div>
+</div>
 <script>
 'use strict';
 /* ================================================================
@@ -68,7 +129,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp  = (a, b, t) => a + (b - a) * t;
 
 const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');   // コレクションのアイコン描画時だけ一時的に差し替える
 const elDay = document.getElementById('day');
 const elCount = document.getElementById('count');
 const elHint = document.getElementById('hint');
@@ -89,6 +150,7 @@ function saveLS(key, value) {
 }
 
 let totalKilled = loadLS('oyu_totalKilled', 0);
+let killsByType = loadLS('oyu_killsByType', {});
 let muted = loadLS('oyu_muted', false);
 
 /* ---------------- 砂利の背景 ---------------- */
@@ -312,59 +374,53 @@ function fadeWet(dt) {
 
 /* ---------------- 雑草 ---------------- */
 /*
- * wakakusa : 若草(細い葉のイネ科)。すぐ枯れる。
- * runner   : メヒシバ系。細い匍匐茎が地を這い、小さな葉がつながって広がる。
- * rosette  : タンポポ系。ギザギザの葉。中くらいのしぶとさ。
- * oobako   : オオバコ。丸く広い葉に平行脈。踏まれ強くやや頑丈。
- * katabami : カタバミ。ハート形の三つ葉+黄色い花。
- * clover   : シロツメクサ。丸い三つ葉に白い斑紋。密なマットで群生する。
- * sugina   : スギナ。針のような細い葉が放射状。しぶとい。
- * dokudami : ドクダミ系。ハート形の葉。しっかりかけないと根が残り復活する。
+ * 雑草図鑑。unlockAt = 累計除草数がこの数に達すると生えてくるようになる。
  */
 const WEED_TYPES = {
   wakakusa: {
+    name: '若草', unlockAt: 0,
     hue: 97, sat: 52, light: 34,
     scaldThreshold: 0.22, witherDur: 20,
     leafCount: [8, 13], leafLen: [16, 33], leafWidth: [1.8, 3],
     weight: 0.18
   },
   runner: {
+    name: 'メヒシバ', unlockAt: 0,
     hue: 92, sat: 46, light: 33,
     scaldThreshold: 0.28, witherDur: 26,
     leafCount: [3, 6], leafLen: [26, 48], leafWidth: [2.2, 3.2],
-    weight: 0.2
+    weight: 0.22
+  },
+  katabami: {
+    name: 'カタバミ', unlockAt: 0,
+    hue: 88, sat: 52, light: 36,
+    scaldThreshold: 0.3, witherDur: 24,
+    leafCount: [4, 7], leafLen: [12, 20], leafWidth: [8, 11],
+    weight: 0.17
   },
   rosette: {
+    name: 'タンポポ', unlockAt: 10,
     hue: 118, sat: 46, light: 27,
     scaldThreshold: 0.45, witherDur: 38,
     leafCount: [7, 10], leafLen: [20, 36], leafWidth: [8, 13],
     weight: 0.11
   },
+  clover: {
+    name: 'シロツメクサ', unlockAt: 25,
+    hue: 128, sat: 46, light: 28,
+    scaldThreshold: 0.35, witherDur: 30,
+    leafCount: [6, 10], leafLen: [11, 17], leafWidth: [9, 13],
+    weight: 0.13
+  },
   oobako: {
+    name: 'オオバコ', unlockAt: 45,
     hue: 124, sat: 42, light: 30,
     scaldThreshold: 0.5, witherDur: 40,
     leafCount: [5, 7], leafLen: [16, 30], leafWidth: [9, 14],
     weight: 0.08
   },
-  katabami: {
-    hue: 88, sat: 52, light: 36,
-    scaldThreshold: 0.3, witherDur: 24,
-    leafCount: [4, 7], leafLen: [12, 20], leafWidth: [8, 11],
-    weight: 0.13
-  },
-  clover: {
-    hue: 128, sat: 46, light: 28,
-    scaldThreshold: 0.35, witherDur: 30,
-    leafCount: [6, 10], leafLen: [11, 17], leafWidth: [9, 13],
-    weight: 0.11
-  },
-  sugina: {
-    hue: 104, sat: 36, light: 31,
-    scaldThreshold: 0.55, witherDur: 45,
-    leafCount: [10, 16], leafLen: [14, 26], leafWidth: [1.1, 1.7],
-    weight: 0.08
-  },
   dokudami: {
+    name: 'ドクダミ', unlockAt: 70,
     hue: 136, sat: 44, light: 21,
     scaldThreshold: 0.72, witherDur: 60,
     leafCount: [5, 8], leafLen: [16, 25], leafWidth: [12, 18],
@@ -377,13 +433,22 @@ const roots = [];       // ドクダミの生き残った根 {x, y, timer, hp}
 let killedThisSession = 0;
 
 function pickWeedType() {
-  const r = Math.random();
-  let acc = 0;
+  // 解放済みの種類だけから重み付きで選ぶ
+  let total = 0;
+  const avail = [];
   for (const key in WEED_TYPES) {
-    acc += WEED_TYPES[key].weight;
-    if (r < acc) return key;
+    const t = WEED_TYPES[key];
+    if (totalKilled >= t.unlockAt) {
+      avail.push([key, t.weight]);
+      total += t.weight;
+    }
   }
-  return 'wakakusa';
+  let r = Math.random() * total;
+  for (const [key, wgt] of avail) {
+    r -= wgt;
+    if (r <= 0) return key;
+  }
+  return avail[avail.length - 1][0];
 }
 
 function makeWeed(x, y, typeKey, opts = {}) {
@@ -440,9 +505,10 @@ function spawnWeed(opts = {}) {
       // 群生: 既存の株のそばに、多くは同じ種類が生える。
       // 匍匐系は茎の先で根付くので、少し離れた場所に連なっていく
       const a = rnd(TAU);
-      const d = opts.near.type === 'runner' ? rnd(18, 46) :
-                opts.near.type === 'clover' ? rnd(8, 22) :   // シロツメクサは特に密なマットに
-                rnd(9, 34);
+      const d = opts.near.type === 'runner' ? rnd(18, 55) :
+                opts.near.type === 'clover' ? rnd(8, 30) :    // シロツメクサは密なマット
+                opts.near.type === 'katabami' ? rnd(14, 62) : // カタバミは広範囲に広がる
+                rnd(10, 48);
       x = opts.near.x + Math.cos(a) * d;
       y = opts.near.y + Math.sin(a) * d;
       if (!type && Math.random() < 0.85) type = opts.near.type;
@@ -487,7 +553,7 @@ function initGarden() {
       sx = rnd(40, W - 40);
       sy = rnd(60, H - 30);
       tries++;
-    } while (tries < 20 && weeds.some(w => (w.x - sx) ** 2 + (w.y - sy) ** 2 < 90 * 90));
+    } while (tries < 20 && weeds.some(w => (w.x - sx) ** 2 + (w.y - sy) ** 2 < 110 * 110));
     const before = weeds.length;
     spawnWeed({ x: sx, y: sy, size: rnd(0.6, 1.05) });
     for (let i = 0; i < perColony; i++) {
@@ -690,21 +756,6 @@ function drawWeed(w, time) {
           drawBlade(ctx, width * (3.4 + (b === nB - 1 ? 1.4 : 0)), width * 0.75, 0.25 * side);
           ctx.restore();
         }
-        break;
-      }
-      case 'sugina': {
-        // 針のような葉と小さな節
-        ctx.strokeStyle = ctx.fillStyle;
-        ctx.lineWidth = width;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(len * 0.08, 0);
-        ctx.quadraticCurveTo(len * 0.55, leaf.curve * len * 0.3, len, leaf.curve * len * 0.5);
-        ctx.stroke();
-        ctx.fillStyle = hslStr(col[0] - 8, col[1], Math.max(6, col[2] - 8));
-        ctx.beginPath();
-        ctx.arc(len * 0.4, leaf.curve * len * 0.16, width * 0.8, 0, TAU);
-        ctx.fill();
         break;
       }
       case 'clover': {
@@ -1285,10 +1336,74 @@ elMute.addEventListener('click', () => {
   applyMute();
 });
 
-/* ---------------- 入力 ---------------- */
-let pouredTotal = 0;     // ヒント表示制御用
-let hintHidden = false;
+/* ---------------- トースト・パネル ---------------- */
+let toastTimer = 0;
+function showToast(msg) {
+  elHint.textContent = msg;
+  elHint.classList.remove('hide');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => elHint.classList.add('hide'), 4200);
+}
 
+const elOverlay = document.getElementById('overlay');
+const elHelpPanel = document.getElementById('helpPanel');
+const elBookPanel = document.getElementById('bookPanel');
+
+function openPanel(which) {
+  elOverlay.classList.remove('hidden');
+  elHelpPanel.classList.toggle('hidden', which !== 'help');
+  elBookPanel.classList.toggle('hidden', which !== 'book');
+  if (which === 'book') buildBook();
+}
+function closePanel() { elOverlay.classList.add('hidden'); }
+document.getElementById('helpBtn').addEventListener('click', () => openPanel('help'));
+document.getElementById('bookBtn').addEventListener('click', () => openPanel('book'));
+document.getElementById('startBtn').addEventListener('click', closePanel);
+elOverlay.addEventListener('click', (e) => {
+  if (e.target === elOverlay || e.target.hasAttribute('data-close')) closePanel();
+});
+
+// コレクションのアイコン: グローバルのctxを一時差し替えてdrawWeedを使い回す
+function renderTypeIcon(cnv, typeKey) {
+  const scale = 2;
+  cnv.width = 72 * scale;
+  cnv.height = 72 * scale;
+  const ic = cnv.getContext('2d');
+  ic.setTransform(scale, 0, 0, scale, 0, 0);
+  const mainCtx = ctx;
+  ctx = ic;
+  try {
+    const t = WEED_TYPES[typeKey];
+    const w = makeWeed(36, 38, typeKey, { size: clamp(30 / t.leafLen[1], 0.5, 1) });
+    w.hasFlower = typeKey === 'dokudami' || typeKey === 'katabami' || typeKey === 'clover';
+    drawWeed(w, 0);
+  } finally {
+    ctx = mainCtx;
+  }
+}
+
+function buildBook() {
+  const grid = document.getElementById('bookGrid');
+  grid.innerHTML = '';
+  for (const key in WEED_TYPES) {
+    const t = WEED_TYPES[key];
+    const unlocked = totalKilled >= t.unlockAt;
+    const card = document.createElement('div');
+    card.className = 'card' + (unlocked ? '' : ' locked');
+    if (unlocked) {
+      const n = killsByType[key] || 0;
+      card.innerHTML = `<div class="nm">${t.name}</div><div class="ct">枯らした ${n}本</div>`;
+      const cnv = document.createElement('canvas');
+      card.insertBefore(cnv, card.firstChild);
+      renderTypeIcon(cnv, key);
+    } else {
+      card.innerHTML = `<div class="q">❓</div><div class="nm">???</div><div class="ct">除草${t.unlockAt}本で出現</div>`;
+    }
+    grid.appendChild(card);
+  }
+}
+
+/* ---------------- 入力 ---------------- */
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   if (pour.active) return;                 // 2本目の指は無視
@@ -1391,11 +1506,6 @@ function update(dt, time) {
 
   // お湯を注ぐ
   if (pour.active) {
-    pouredTotal += dt;
-    if (!hintHidden && pouredTotal > 1.6) {
-      hintHidden = true;
-      elHint.classList.add('hide');
-    }
     // 熱を加える(枯れ草に当たったら崩して片付ける)
     for (const w of weeds) {
       const dx = w.x - pour.x, dy = w.y - pour.y;
@@ -1462,9 +1572,20 @@ function update(dt, time) {
           roots.push({ x: w.x, y: w.y, timer: rnd(14, 28), hp: w.rootHp - 1 });
         }
         weeds.splice(i, 1);
+        const prev = totalKilled;
         totalKilled++;
         killedThisSession++;
+        killsByType[w.type] = (killsByType[w.type] || 0) + 1;
         saveLS('oyu_totalKilled', totalKilled);
+        saveLS('oyu_killsByType', killsByType);
+        // 除草数に応じて新種が解放される
+        for (const key in WEED_TYPES) {
+          const tt = WEED_TYPES[key];
+          if (tt.unlockAt > 0 && prev < tt.unlockAt && totalKilled >= tt.unlockAt) {
+            showToast(`🌱 新しい雑草「${tt.name}」が生えてくるようになった…`);
+            for (let s = 0; s < 2; s++) spawnWeed({ type: key });
+          }
+        }
         updateHud();
         continue;
       }
@@ -1598,6 +1719,7 @@ resize();
 initGarden();
 applyMute();
 updateHud();
+openPanel('help');   // 起動時にあそびかたを表示
 requestAnimationFrame((ms) => { lastTime = ms / 1000; requestAnimationFrame(frame); });
 </script>
 </body>
