@@ -60,7 +60,11 @@
   .panel {
     background: #f6f2e8; color: #3a352c;
     border-radius: 16px; max-width: 440px; width: 100%;
-    max-height: 82vh; overflow-y: auto;
+    /* スマホはURLバーの分vhが実画面より大きいので、実高さ(100%)も上限にする。
+       border-boxにしないとmax-heightにパディングが乗ってはみ出す */
+    box-sizing: border-box;
+    max-height: min(82vh, 100%); overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 22px 22px 18px; position: relative;
     box-shadow: 0 12px 40px rgba(0,0,0,.4);
   }
