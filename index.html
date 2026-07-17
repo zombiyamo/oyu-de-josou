@@ -323,43 +323,43 @@ function fadeWet(dt) {
 const WEED_TYPES = {
   wakakusa: {
     hue: 97, sat: 52, light: 34,
-    scaldThreshold: 0.22, witherDur: 20, growDur: 55,
+    scaldThreshold: 0.22, witherDur: 20,
     leafCount: [8, 13], leafLen: [16, 33], leafWidth: [1.8, 3],
     weight: 0.2
   },
   runner: {
     hue: 92, sat: 46, light: 33,
-    scaldThreshold: 0.28, witherDur: 26, growDur: 50,
+    scaldThreshold: 0.28, witherDur: 26,
     leafCount: [3, 6], leafLen: [26, 48], leafWidth: [2.2, 3.2],
     weight: 0.22
   },
   rosette: {
     hue: 118, sat: 46, light: 27,
-    scaldThreshold: 0.45, witherDur: 38, growDur: 85,
+    scaldThreshold: 0.45, witherDur: 38,
     leafCount: [7, 10], leafLen: [20, 36], leafWidth: [8, 13],
     weight: 0.13
   },
   oobako: {
     hue: 124, sat: 42, light: 30,
-    scaldThreshold: 0.5, witherDur: 40, growDur: 90,
+    scaldThreshold: 0.5, witherDur: 40,
     leafCount: [5, 7], leafLen: [16, 30], leafWidth: [9, 14],
     weight: 0.09
   },
   katabami: {
     hue: 88, sat: 52, light: 36,
-    scaldThreshold: 0.3, witherDur: 24, growDur: 60,
+    scaldThreshold: 0.3, witherDur: 24,
     leafCount: [4, 7], leafLen: [12, 20], leafWidth: [8, 11],
     weight: 0.15
   },
   sugina: {
     hue: 104, sat: 36, light: 31,
-    scaldThreshold: 0.55, witherDur: 45, growDur: 75,
+    scaldThreshold: 0.55, witherDur: 45,
     leafCount: [10, 16], leafLen: [14, 26], leafWidth: [1.1, 1.7],
     weight: 0.09
   },
   dokudami: {
     hue: 136, sat: 44, light: 21,
-    scaldThreshold: 0.72, witherDur: 60, growDur: 105,
+    scaldThreshold: 0.72, witherDur: 60,
     leafCount: [5, 8], leafLen: [16, 25], leafWidth: [12, 18],
     weight: 0.12
   }
@@ -395,10 +395,9 @@ function makeWeed(x, y, typeKey, opts = {}) {
   }
   return {
     x, y, type: typeKey, leaves,
-    size: opts.size !== undefined ? opts.size : 0.02,
-    age: opts.size !== undefined && opts.size > 0.2 ? 10 : 0,   // 新芽だけ発芽演出をする
-    maxSize: rnd(0.9, 1.15),
-    growDur: t.growDur * (opts.regrown ? 0.55 : 1) * rnd(0.85, 1.2),
+    // 草は成長しない。生えた時から完成サイズで、現れるときだけふわっとフェードイン
+    size: opts.size !== undefined ? opts.size : rnd(0.55, 1.05),
+    age: opts.size !== undefined ? 10 : 0,   // サイズ指定なし=新しく生えた草だけ演出する
     scald: 0, visualScald: 0, wither: 0,
     crumbleTimer: 0, dead: false, rootCooked: false,
     rootHp: typeKey === 'dokudami' ? (opts.rootHp !== undefined ? opts.rootHp : irnd(1, 2)) : 0,
@@ -480,14 +479,13 @@ function initGarden() {
       tries++;
     } while (tries < 20 && weeds.some(w => (w.x - sx) ** 2 + (w.y - sy) ** 2 < 90 * 90));
     const before = weeds.length;
-    spawnWeed({ x: sx, y: sy, size: rnd(0.5, 1) });
+    spawnWeed({ x: sx, y: sy, size: rnd(0.6, 1.05) });
     for (let i = 0; i < perColony; i++) {
       const colony = weeds.slice(before);
       if (!colony.length) break;
-      spawnWeed({ near: colony[irnd(0, colony.length - 1)], size: rnd(0.35, 1) });
+      spawnWeed({ near: colony[irnd(0, colony.length - 1)], size: rnd(0.5, 1.05) });
     }
   }
-  for (let i = 0; i < 3; i++) spawnWeed({ size: rnd(0.22, 0.3) });
 }
 
 /* ---- 葉の色: 健康 → 湯がかかって色変わり → 黄 → 茶 → 枯れ色 ---- */
@@ -602,8 +600,8 @@ function drawWeed(w, time) {
   ctx.fillStyle = isRunner ? 'rgba(10,10,14,0.1)' : 'rgba(10,10,14,0.2)';
   ctx.fill();
 
-  // 生えたての芽はふわっと現れる
-  const emerge = clamp(w.age / 1.2, 0, 1);
+  // 新しく生えた草はゆっくりフェードインで現れる(成長はしない)
+  const emerge = clamp(w.age / 2, 0, 1);
   const dyingAlpha = (w.crumbleTimer > 0 ? clamp(1 - w.crumbleTimer / CRUMBLE_FADE, 0, 1) : 1) *
                      (0.25 + 0.75 * emerge);
   for (let i = 0; i < w.leaves.length; i++) {
@@ -1326,7 +1324,7 @@ function update(dt, time) {
     r.timer -= dt;
     if (r.timer <= 0) {
       roots.splice(i, 1);
-      spawnWeed({ x: r.x, y: r.y, type: 'dokudami', size: 0.08, regrown: true, rootHp: r.hp });
+      spawnWeed({ x: r.x, y: r.y, type: 'dokudami', rootHp: r.hp });
     }
   }
 
@@ -1418,16 +1416,6 @@ function update(dt, time) {
       if (w.wither < 0.15) w.wither = Math.max(0, w.wither - dt * 0.004);
     }
 
-    // 成長(枯れかけの草は伸びない)
-    if (w.wither < 0.2) {
-      if (w.size < w.maxSize) {
-        w.size = Math.min(w.maxSize, w.size + dt * (w.maxSize + 0.25 - w.size) / w.growDur * 3.2);
-      }
-      // 除草しないでいると、少しずつ伸びて茂っていく
-      if (w.maxSize < 1.6 && w.scald < 0.1) {
-        w.maxSize += dt * 0.0022;
-      }
-    }
   }
 
   // 鳥のさえずり
