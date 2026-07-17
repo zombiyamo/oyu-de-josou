@@ -62,6 +62,15 @@
     border: 0; border-radius: 999px; background: #5c7c4f; color: #fff;
     font-size: 15px; cursor: pointer;
   }
+  #resetRow {
+    text-align: center; margin-top: 16px;
+    border-top: 1px solid rgba(0,0,0,.08); padding-top: 10px;
+  }
+  #resetBtn {
+    border: 0; background: none; color: #a05a4a;
+    font-size: 12px; cursor: pointer; padding: 6px 12px; border-radius: 8px;
+  }
+  #resetBtn.arm { background: #c0554a; color: #fff; }
   #bookGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .card {
     background: rgba(255,255,255,.6); border-radius: 12px;
@@ -107,6 +116,9 @@
       <li>📖ボタンで雑草コレクションを見られます</li>
     </ul>
     <button id="startBtn">OK</button>
+    <div id="resetRow">
+      <button id="resetBtn">除草の記録をリセット</button>
+    </div>
   </div>
   <div class="panel hidden" id="bookPanel">
     <button class="closex" data-close aria-label="閉じる">✕</button>
@@ -757,18 +769,15 @@ function drawWeed(w, time) {
           ctx.rotate(leaf.curve * 0.45);
           const hFade = 1 - lw * 0.5;
           const bodyL = 11;
-          // なめらかなカプセル形の穂本体
+          // きれいな楕円ひとつの穂
           ctx.fillStyle = `hsla(62,42%,${(58 - lw * 16).toFixed(0)}%,${(0.9 * hFade).toFixed(2)})`;
           ctx.beginPath();
-          ctx.ellipse(-bodyL * 0.5 + 1, 0, bodyL * 0.62, 2.3, 0, 0, TAU);
-          ctx.fill();
-          ctx.beginPath();
-          ctx.ellipse(1.2, 0, 2.4, 2.15, 0, 0, TAU);
+          ctx.ellipse(-bodyL * 0.35, 0, bodyL * 0.68, 2.35, 0, 0, TAU);
           ctx.fill();
           // うっすらハイライト
           ctx.fillStyle = `hsla(58,50%,${(70 - lw * 14).toFixed(0)}%,${(0.35 * hFade).toFixed(2)})`;
           ctx.beginPath();
-          ctx.ellipse(-bodyL * 0.45, -0.7, bodyL * 0.5, 1.0, 0, 0, TAU);
+          ctx.ellipse(-bodyL * 0.35, -0.75, bodyL * 0.5, 0.95, 0, 0, TAU);
           ctx.fill();
           ctx.restore();
         } else {
@@ -1525,6 +1534,33 @@ function closePanel() { elOverlay.classList.add('hidden'); }
 document.getElementById('helpBtn').addEventListener('click', () => openPanel('help'));
 document.getElementById('bookBtn').addEventListener('click', () => openPanel('book'));
 document.getElementById('startBtn').addEventListener('click', closePanel);
+
+// 除草記録のリセット(誤操作防止の2段階確認)
+const elReset = document.getElementById('resetBtn');
+let resetArmTimer = 0;
+elReset.addEventListener('click', () => {
+  if (!elReset.classList.contains('arm')) {
+    elReset.classList.add('arm');
+    elReset.textContent = '本当にリセットする?(もう一度押す)';
+    clearTimeout(resetArmTimer);
+    resetArmTimer = setTimeout(() => {
+      elReset.classList.remove('arm');
+      elReset.textContent = '除草の記録をリセット';
+    }, 4000);
+    return;
+  }
+  clearTimeout(resetArmTimer);
+  totalKilled = 0;
+  killedThisSession = 0;
+  killsByType = {};
+  saveLS('oyu_totalKilled', 0);
+  saveLS('oyu_killsByType', {});
+  updateHud();
+  elReset.classList.remove('arm');
+  elReset.textContent = '除草の記録をリセット';
+  closePanel();
+  showToast('除草の記録をリセットしました。雑草の解放も最初からです');
+});
 elOverlay.addEventListener('click', (e) => {
   if (e.target === elOverlay || e.target.hasAttribute('data-close')) closePanel();
 });
