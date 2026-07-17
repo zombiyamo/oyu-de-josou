@@ -207,7 +207,8 @@ const LOCALES = {
       '枯れ草はその場に残ります。<b>タップ</b>するとホロッと崩れて片付きます',
       '種類によってしぶとさが違います。中には根が残って復活するやつも…',
       '<b>除草した数が増えると、新しい種類の雑草</b>が生えてくるようになります',
-      'たまに<b>✨金のやかん</b>(20秒間2本注ぎ)や<b>🧪除草剤</b>(庭ごと除草)が落ちています。タップで拾うと発動',
+      'たまに<b>✨金のやかん</b>(20秒間2本注ぎ)や<b>🧪除草剤</b>が落ちています。タップか、やかんで触れると発動',
+      '除草剤は<b>コモン(緑)50%・アンコモン(青)60%・レア(紫)100%</b>の割合で、波が届いた草を枯らします',
       '📖ボタンで雑草コレクションを見られます',
       '図鑑を<b>全13種</b>そろえたらコンプリート。最後のひとつは…?'
     ],
@@ -230,7 +231,7 @@ const LOCALES = {
     useHerb: (name) => `🧪 ${name}を散布!`,
     reset: '除草の記録をリセット',
     resetConfirm: '本当にリセットする?(もう一度押す)',
-    resetDone: '除草の記録をリセットしました。雑草の解放も最初からです',
+    resetDone: '記録をリセットしました。日数・除草数・雑草の解放が最初からです',
     bookTitle: '📖 雑草コレクション',
     cleared: (n) => `枯らした ${n}本`,
     unlockAt: (n) => `除草${n}本で出現`,
@@ -265,7 +266,8 @@ const LOCALES = {
       'Withered weeds stay where they are — <b>tap</b> them to crumble them away',
       'Some weeds are tougher than others. A few regrow from surviving roots…',
       '<b>The more weeds you clear, the more new species</b> start to appear',
-      'Sometimes a <b>✨golden kettle</b> (two kettles for 20s) or <b>🧪weed killer</b> (clears the whole garden) drops — tap to use it',
+      'Sometimes a <b>✨golden kettle</b> (two kettles for 20s) or <b>🧪weed killer</b> drops — tap it or touch it with the kettle to use',
+      'Weed killer comes in <b>Common (green) 50%, Uncommon (blue) 60%, Rare (purple) 100%</b> kill rates',
       'Check your weed collection with the 📖 button',
       'Collect <b>all 13 species</b> to complete the book. The last one…?'
     ],
@@ -288,7 +290,7 @@ const LOCALES = {
     useHerb: (name) => `🧪 ${name} sprayed!`,
     reset: 'Reset weeding records',
     resetConfirm: 'Really reset? (tap again)',
-    resetDone: 'Records reset. Species unlocks start over',
+    resetDone: 'Records reset — days, weed count, and species unlocks start over',
     bookTitle: '📖 Weed Collection',
     cleared: (n) => `Cleared: ${n}`,
     unlockAt: (n) => `Unlocks at ${n} cleared`,
@@ -323,7 +325,8 @@ const LOCALES = {
       '枯草会留在原地,<b>点一下</b>就会碎掉清理',
       '不同杂草的顽强程度不同,有的根还活着会再长出来…',
       '<b>除草数量越多,出现的新品种就越多</b>',
-      '偶尔会掉落<b>✨金水壶</b>(20秒双壶)或<b>🧪除草剂</b>(清空整个庭院),点击拾取即发动',
+      '偶尔会掉落<b>✨金水壶</b>(20秒双壶)或<b>🧪除草剂</b>,点击或用水壶碰到即可发动',
+      '除草剂分<b>普通(绿)50%、高级(蓝)60%、稀有(紫)100%</b>的除草率',
       '点📖按钮查看杂草图鉴',
       '集齐<b>全部13种</b>即可完成图鉴。最后一种是…?'
     ],
@@ -346,7 +349,7 @@ const LOCALES = {
     useHerb: (name) => `🧪 喷洒了${name}!`,
     reset: '重置除草记录',
     resetConfirm: '确定要重置?(再点一次)',
-    resetDone: '记录已重置,品种解锁重新开始',
+    resetDone: '记录已重置:天数、除草数、品种解锁都从头开始',
     bookTitle: '📖 杂草图鉴',
     cleared: (n) => `已除 ${n} 株`,
     unlockAt: (n) => `除草${n}株后出现`,
@@ -381,7 +384,8 @@ const LOCALES = {
       '시든 풀은 그 자리에 남습니다. <b>탭</b>하면 바스러지며 치워집니다',
       '종류마다 끈질김이 다릅니다. 뿌리가 살아남아 다시 자라는 것도…',
       '<b>제거한 잡초가 늘어나면 새로운 종류</b>가 자라나기 시작합니다',
-      '가끔 <b>✨황금 주전자</b>(20초간 주전자 2개)나 <b>🧪제초제</b>(정원 전체 제초)가 떨어집니다. 탭해서 발동',
+      '가끔 <b>✨황금 주전자</b>(20초간 주전자 2개)나 <b>🧪제초제</b>가 떨어집니다. 탭하거나 주전자로 닿으면 발동',
+      '제초제는 <b>일반(초록) 50%, 고급(파랑) 60%, 희귀(보라) 100%</b>의 비율로 풀을 시들게 합니다',
       '📖 버튼으로 잡초 도감을 볼 수 있습니다',
       '<b>13종</b>을 모두 모으면 도감 완성. 마지막 한 종은…?'
     ],
@@ -404,7 +408,7 @@ const LOCALES = {
     useHerb: (name) => `🧪 ${name} 살포!`,
     reset: '제초 기록 초기화',
     resetConfirm: '정말 초기화할까요? (한 번 더 탭)',
-    resetDone: '기록이 초기화되었습니다. 잡초 해금도 처음부터입니다',
+    resetDone: '기록이 초기화되었습니다. 일수·제초 수·잡초 해금이 처음부터입니다',
     bookTitle: '📖 잡초 도감',
     cleared: (n) => `제거 ${n}개`,
     unlockAt: (n) => `제초 ${n}개 달성 시 등장`,
@@ -2045,8 +2049,12 @@ elReset.addEventListener('click', () => {
   totalKilled = 0;
   killedThisSession = 0;
   killsByType = {};
+  elapsed = 0;
+  day = 1;
+  lastClock = '';
   saveLS('oyu_totalKilled', 0);
   saveLS('oyu_killsByType', {});
+  saveLS('oyu_elapsed', 0);
   updateHud();
   elReset.classList.remove('arm');
   elReset.textContent = L.reset;
@@ -2169,8 +2177,8 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 /* ---------------- 時間・1日サイクル ---------------- */
 const DAY_LEN = 30;              // 現実30秒 = ゲーム内1日
 const CRUMBLE_FADE = 0.5;        // タップされた枯れ草が崩れて消えるまでの秒数
-let elapsed = 0;
-let day = 1;
+let elapsed = loadLS('oyu_elapsed', 0);   // 経過日数(時刻ごと)は保存されて続きから
+let day = Math.floor(elapsed / DAY_LEN) + 1;
 let spawnTimer = rnd(2, 5);
 
 // ゲーム内時刻は完全に等速(1日=30秒を24時間に均等割り。5:00スタート)
@@ -2205,6 +2213,7 @@ function update(dt, time) {
   const newDay = Math.floor(elapsed / DAY_LEN) + 1;
   if (newDay !== day) {
     day = newDay;
+    saveLS('oyu_elapsed', elapsed);
     // 一晩経つとまた生えてくる
     if (weeds.length < MAX_WEEDS) {
       const n = irnd(2, 4);
@@ -2710,6 +2719,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:' &&
 }
 
 document.addEventListener('visibilitychange', () => {
+  if (document.hidden) saveLS('oyu_elapsed', elapsed);
   if (!audio.ctx) return;
   if (document.hidden) {
     const p = audio.ctx.suspend();
@@ -2719,6 +2729,7 @@ document.addEventListener('visibilitychange', () => {
     if (p && p.catch) p.catch(() => {});
   }
 });
+window.addEventListener('pagehide', () => saveLS('oyu_elapsed', elapsed));
 
 /* ---------------- 開始 ---------------- */
 buildSteamSprite();
