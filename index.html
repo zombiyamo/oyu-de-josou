@@ -1460,16 +1460,17 @@ let lingering = null;    // 注ぎ終わった後もしばらく湯気が立つ 
 let ringTimer = 0, wetTimer = 0;
 
 function updatePourTarget() {
-  const side = pour.x > 130 ? 1 : -1;   // 左端ぎわでは右側に注ぐ
-  pour.tx = clamp(pour.x - 62 * side, 14, Math.max(14, W - 14));
-  pour.ty = clamp(pour.y + 66, 30, Math.max(30, H - 12));
+  // 着地点はやかんの注ぎ口のすぐ先。離れすぎると狙いにくい
+  const side = pour.x > 80 ? 1 : -1;   // 左端ぎわでは右側に注ぐ
+  pour.tx = clamp(pour.x - 36 * side, 14, Math.max(14, W - 14));
+  pour.ty = clamp(pour.y + 40, 30, Math.max(30, H - 12));
 }
 
 function drawKettle(time) {
   const k = { x: pour.x, y: pour.y };
   const dx = pour.tx - k.x, dy = pour.ty - k.y;
   const ang = Math.atan2(dy, dx);
-  const spoutLen = 42;
+  const spoutLen = 38;
   const sx = k.x + Math.cos(ang) * spoutLen;
   const sy = k.y + Math.sin(ang) * spoutLen;
 
