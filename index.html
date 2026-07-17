@@ -1006,10 +1006,11 @@ function drawWeed(w, time) {
   ctx.fillStyle = isRunner ? 'rgba(18,12,6,0.1)' : 'rgba(18,12,6,0.2)';
   ctx.fill();
 
-  // 新しく生えた草はゆっくりフェードインで現れる(成長はしない)
-  const emerge = clamp(w.age / 2, 0, 1);
+  // 新しく生えた草は透明から、ゆっくり立ち上がってふわっと現れる(成長はしない)
+  const emerge = clamp(w.age / 2.8, 0, 1);
+  const emergeEase = emerge * emerge * (3 - 2 * emerge);   // smoothstep
   const dyingAlpha = (w.crumbleTimer > 0 ? clamp(1 - w.crumbleTimer / CRUMBLE_FADE, 0, 1) : 1) *
-                     (0.25 + 0.75 * emerge);
+                     emergeEase;
   for (let i = 0; i < w.leaves.length; i++) {
     // 葉は1枚ずつ順番に、小さく生えてから育つ
     const lp = clamp(w.size * 1.4 * w.leaves.length - i, 0, 1);
@@ -2378,7 +2379,7 @@ let lastLayerRebuild = -9;     // 再構築の連発を防ぐ(超密林でのカ
 const pendingLayerAdds = [];   // 新しく定着した草はレイヤー全体を作り直さず描き足す
 
 function isDynamicWeed(w) {
-  if (w.removing || w.age < 2.4) return true;   // 崩れ中・生えたてのフェードイン中
+  if (w.removing || w.age < 3) return true;   // 崩れ中・生えたてのフェードイン中
   if (w.wither >= 1) return false;              // 枯れ草は見た目が固定
   return w.wither > 0 || w.scald > 0.004 || w.visualScald > 0.004;
 }
