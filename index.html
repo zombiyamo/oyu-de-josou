@@ -2093,8 +2093,8 @@ function update(dt, time) {
   const newDay = Math.floor(elapsed / DAY_LEN) + 1;
   if (newDay !== day) {
     day = newDay;
-    // 一晩経つとまた生えてくる(放置しても庭が飽和しない程度に)
-    if (weeds.length < Math.min(weedTargetCount() * 1.2, MAX_WEEDS)) {
+    // 一晩経つとまた生えてくる
+    if (weeds.length < MAX_WEEDS) {
       const n = irnd(2, 4);
       for (let i = 0; i < n; i++) {
         if (weeds.length && Math.random() < 0.8) {
@@ -2112,7 +2112,11 @@ function update(dt, time) {
   if (spawnTimer <= 0) {
     spawnTimer = regrowBoostT > 0 ? rnd(0.25, 0.7) : rnd(0.8, 2.0);
     const target = weedTargetCount();
-    if (weeds.length < target && Math.random() < 1.15 - weeds.length / target) {
+    const wantSpawn =
+      (weeds.length < target && Math.random() < 1.15 - weeds.length / target) ||
+      // 目標密度を超えても、放置していればじわじわ茂って画面が埋まっていく
+      (weeds.length < MAX_WEEDS && Math.random() < 0.22);
+    if (wantSpawn) {
       // 群生しがち: 多くは既存の株の近くから生えてくる
       if (weeds.length && Math.random() < 0.8) {
         spawnWeed({ near: weeds[irnd(0, weeds.length - 1)] });
