@@ -1,6 +1,6 @@
 # お湯de除草 〜砂利の庭〜 🫖🌿
 
-**▶ 遊ぶ: https://zombiyamo.github.io/dotfiles/** (GitHub Pagesの有効化が必要。手順は下記)
+**▶ 遊ぶ: https://zombiyamo.github.io/oyu-de-josou/** (GitHub Pagesの有効化が必要。手順は下記)
 
 砂利の隙間から生えてくる雑草に熱湯をかけて枯らす、癒し系の箱庭ブラウザゲームです。
 葉っぱにお湯がかかると少し色が変わり、しばらく眺めていると だんだん黄色く、茶色く枯れていきます。
@@ -53,7 +53,7 @@
 1. このリポジトリの **Settings → Pages** を開く
 2. 「Build and deployment」の Source を **Deploy from a branch** にする
 3. Branch: `claude/weed-removal-browser-game-lyop0n` / フォルダ `/ (root)` を選んで **Save**
-4. 数分待つと `https://zombiyamo.github.io/dotfiles/` で遊べるようになります
+4. 数分待つと `https://zombiyamo.github.io/oyu-de-josou/` で遊べるようになります
 
 補足:
 - OGPタグ設定済み。X(Twitter)にURLを貼ると大きなサムネイルカード(`ogp.png`)が表示されます
