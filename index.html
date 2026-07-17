@@ -71,6 +71,18 @@
     font-size: 12px; cursor: pointer; padding: 6px 12px; border-radius: 8px;
   }
   #resetBtn.arm { background: #c0554a; color: #fff; }
+  #bookNext { font-size: 12.5px; opacity: .8; margin: -4px 0 10px; }
+  .obstep { display: flex; gap: 12px; align-items: flex-start; font-size: 13.5px; line-height: 1.7; margin: 10px 0; }
+  .obstep .ic { font-size: 22px; flex: none; }
+  #obGoal {
+    margin-top: 14px; background: rgba(92,124,79,.12); border-radius: 10px;
+    padding: 10px 12px; font-size: 13px; font-weight: 700; color: #4a6440;
+  }
+  #obStartBtn {
+    display: block; margin: 16px auto 2px; padding: 10px 38px;
+    border: 0; border-radius: 999px; background: #5c7c4f; color: #fff;
+    font-size: 15px; cursor: pointer;
+  }
   #bookGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .card {
     background: rgba(255,255,255,.6); border-radius: 12px;
@@ -116,7 +128,14 @@
   <div class="panel hidden" id="bookPanel">
     <button class="closex" data-close aria-label="閉じる">✕</button>
     <h2 id="bookTitle">📖 雑草コレクション</h2>
+    <div id="bookNext"></div>
     <div id="bookGrid"></div>
+  </div>
+  <div class="panel hidden" id="onboardPanel">
+    <h2 id="obTitle"></h2>
+    <div id="obSteps"></div>
+    <div id="obGoal"></div>
+    <button id="obStartBtn"></button>
   </div>
 </div>
 <script>
@@ -172,9 +191,20 @@ const LOCALES = {
       '枯れ草はその場に残ります。<b>タップ</b>するとホロッと崩れて片付きます',
       '種類によってしぶとさが違います。中には根が残って復活するやつも…',
       '<b>除草した数が増えると、新しい種類の雑草</b>が生えてくるようになります',
-      '📖ボタンで雑草コレクションを見られます'
+      '📖ボタンで雑草コレクションを見られます',
+      'ゴールは<b>全13種のコレクション完成</b>。最後の1種は…?'
     ],
     ok: 'OK',
+    obTitle: '🫖 ようこそ、砂利の庭へ',
+    obSteps: [
+      ['🫖', '長押しで、やかんから熱湯が出ます'],
+      ['🍂', 'かかった草は数十秒かけてだんだん枯れます。枯れ草はタップでお片付け'],
+      ['🌱', '除草するほど、新しい種類の雑草が生えてくるようになります']
+    ],
+    obGoal: 'ゴール: 幻の雑草まで、全13種のコレクション完成!',
+    obStart: 'はじめる',
+    nextUnlock: (n) => `次の新種まで あと${n}本`,
+    allUnlocked: '全種類コンプリート!🎉',
     reset: '除草の記録をリセット',
     resetConfirm: '本当にリセットする?(もう一度押す)',
     resetDone: '除草の記録をリセットしました。雑草の解放も最初からです',
@@ -202,9 +232,20 @@ const LOCALES = {
       'Withered weeds stay where they are — <b>tap</b> them to crumble them away',
       'Some weeds are tougher than others. A few regrow from surviving roots…',
       '<b>The more weeds you clear, the more new species</b> start to appear',
-      'Check your weed collection with the 📖 button'
+      'Check your weed collection with the 📖 button',
+      'The goal: <b>complete the collection of all 13 species</b>. The last one is…?'
     ],
     ok: 'OK',
+    obTitle: '🫖 Welcome to the Gravel Garden',
+    obSteps: [
+      ['🫖', 'Press and hold to pour hot water'],
+      ['🍂', 'Scalded weeds slowly wither. Tap withered weeds to clear them away'],
+      ['🌱', 'The more you clear, the more new species appear']
+    ],
+    obGoal: 'Goal: complete the collection of all 13 weeds — down to the legendary one!',
+    obStart: 'Start',
+    nextUnlock: (n) => `Next new species in ${n} more`,
+    allUnlocked: 'Collection complete! 🎉',
     reset: 'Reset weeding records',
     resetConfirm: 'Really reset? (tap again)',
     resetDone: 'Records reset. Species unlocks start over',
@@ -232,9 +273,20 @@ const LOCALES = {
       '枯草会留在原地,<b>点一下</b>就会碎掉清理',
       '不同杂草的顽强程度不同,有的根还活着会再长出来…',
       '<b>除草数量越多,出现的新品种就越多</b>',
-      '点📖按钮查看杂草图鉴'
+      '点📖按钮查看杂草图鉴',
+      '目标:<b>集齐全部13种杂草</b>。最后一种是…?'
     ],
     ok: 'OK',
+    obTitle: '🫖 欢迎来到砾石庭院',
+    obSteps: [
+      ['🫖', '按住即可倒热水'],
+      ['🍂', '被烫的草会慢慢枯萎,点一下枯草即可清理'],
+      ['🌱', '除草越多,出现的新品种就越多']
+    ],
+    obGoal: '目标:集齐全部13种杂草——包括最后的梦幻杂草!',
+    obStart: '开始',
+    nextUnlock: (n) => `再除 ${n} 株解锁新品种`,
+    allUnlocked: '图鉴已集齐!🎉',
     reset: '重置除草记录',
     resetConfirm: '确定要重置?(再点一次)',
     resetDone: '记录已重置,品种解锁重新开始',
@@ -262,9 +314,20 @@ const LOCALES = {
       '시든 풀은 그 자리에 남습니다. <b>탭</b>하면 바스러지며 치워집니다',
       '종류마다 끈질김이 다릅니다. 뿌리가 살아남아 다시 자라는 것도…',
       '<b>제거한 잡초가 늘어나면 새로운 종류</b>가 자라나기 시작합니다',
-      '📖 버튼으로 잡초 도감을 볼 수 있습니다'
+      '📖 버튼으로 잡초 도감을 볼 수 있습니다',
+      '목표는 <b>전체 13종 도감 완성</b>. 마지막 한 종은…?'
     ],
     ok: 'OK',
+    obTitle: '🫖 자갈 정원에 오신 것을 환영합니다',
+    obSteps: [
+      ['🫖', '길게 누르면 뜨거운 물이 나옵니다'],
+      ['🍂', '물이 닿은 풀은 서서히 시듭니다. 시든 풀은 탭해서 정리하세요'],
+      ['🌱', '제거할수록 새로운 종류의 잡초가 자라납니다']
+    ],
+    obGoal: '목표: 환상의 잡초까지, 전체 13종 도감 완성!',
+    obStart: '시작하기',
+    nextUnlock: (n) => `새 품종까지 앞으로 ${n}개`,
+    allUnlocked: '도감 완성! 🎉',
     reset: '제초 기록 초기화',
     resetConfirm: '정말 초기화할까요? (한 번 더 탭)',
     resetDone: '기록이 초기화되었습니다. 잡초 해금도 처음부터입니다',
@@ -300,6 +363,12 @@ function applyLocale() {
   document.getElementById('startBtn').textContent = L.ok;
   document.getElementById('resetBtn').textContent = L.reset;
   document.getElementById('bookTitle').textContent = L.bookTitle;
+  document.getElementById('obTitle').textContent = L.obTitle;
+  document.getElementById('obSteps').innerHTML = L.obSteps
+    .map(([ic, s]) => `<div class="obstep"><span class="ic">${ic}</span><span>${s}</span></div>`)
+    .join('');
+  document.getElementById('obGoal').textContent = L.obGoal;
+  document.getElementById('obStartBtn').textContent = L.obStart;
 }
 
 /* ---------------- 砂利の背景 ---------------- */
@@ -1709,17 +1778,28 @@ function showToast(msg, dur = 4200) {
 const elOverlay = document.getElementById('overlay');
 const elHelpPanel = document.getElementById('helpPanel');
 const elBookPanel = document.getElementById('bookPanel');
+const elOnboardPanel = document.getElementById('onboardPanel');
 
 function openPanel(which) {
   elOverlay.classList.remove('hidden');
   elHelpPanel.classList.toggle('hidden', which !== 'help');
   elBookPanel.classList.toggle('hidden', which !== 'book');
+  elOnboardPanel.classList.toggle('hidden', which !== 'onboard');
   if (which === 'book') buildBook();
 }
-function closePanel() { elOverlay.classList.add('hidden'); }
+function closePanel() {
+  const wasOnboarding = !elOnboardPanel.classList.contains('hidden');
+  elOverlay.classList.add('hidden');
+  if (wasOnboarding) {
+    saveLS('oyu_onboarded', true);
+    pourGuideActive = true;
+    showToast(L.pourGuide, 9000);
+  }
+}
 document.getElementById('helpBtn').addEventListener('click', () => openPanel('help'));
 document.getElementById('bookBtn').addEventListener('click', () => openPanel('book'));
 document.getElementById('startBtn').addEventListener('click', closePanel);
+document.getElementById('obStartBtn').addEventListener('click', closePanel);
 
 // 除草記録のリセット(誤操作防止の2段階確認)
 const elReset = document.getElementById('resetBtn');
@@ -1771,6 +1851,15 @@ function renderTypeIcon(cnv, typeKey) {
 }
 
 function buildBook() {
+  // 次の目標(あと何本で新種か)
+  let nextAt = Infinity;
+  for (const key in WEED_TYPES) {
+    const ua = WEED_TYPES[key].unlockAt;
+    if (ua > totalKilled && ua < nextAt) nextAt = ua;
+  }
+  document.getElementById('bookNext').textContent =
+    nextAt === Infinity ? L.allUnlocked : L.nextUnlock(nextAt - totalKilled);
+
   const grid = document.getElementById('bookGrid');
   grid.innerHTML = '';
   for (const key in WEED_TYPES) {
@@ -2167,9 +2256,14 @@ initGarden();
 applyLocale();
 applyMute();
 updateHud();
-// 起動時は軽いトースト案内だけ(詳しいあそびかたは右上の?ボタン)
-pourGuideActive = true;
-showToast(L.pourGuide, 9000);
+if (!loadLS('oyu_onboarded', false)) {
+  // 初回だけ、かんたんなオンボーディング(ゴール込み)を表示
+  openPanel('onboard');
+} else {
+  // 2回目以降は軽いトースト案内だけ
+  pourGuideActive = true;
+  showToast(L.pourGuide, 9000);
+}
 requestAnimationFrame((ms) => { lastTime = ms / 1000; requestAnimationFrame(frame); });
 </script>
 </body>
