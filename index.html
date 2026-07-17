@@ -192,7 +192,7 @@ const LOCALES = {
       '種類によってしぶとさが違います。中には根が残って復活するやつも…',
       '<b>除草した数が増えると、新しい種類の雑草</b>が生えてくるようになります',
       '📖ボタンで雑草コレクションを見られます',
-      'ゴールは<b>全13種のコレクション完成</b>。最後の1種は…?'
+      '図鑑を<b>全13種</b>そろえたらコンプリート。最後のひとつは幻の草…🌈'
     ],
     ok: 'OK',
     obTitle: '🫖 ようこそ、砂利の庭へ',
@@ -201,10 +201,10 @@ const LOCALES = {
       ['🍂', 'かかった草は数十秒かけてだんだん枯れます。枯れ草はタップでお片付け'],
       ['🌱', '除草するほど、新しい種類の雑草が生えてくるようになります']
     ],
-    obGoal: 'ゴール: 幻の雑草まで、全13種のコレクション完成!',
+    obGoal: 'この庭には、ぜんぶで13種類の雑草が生えるらしい。最後のひとつは…この世に存在しない、幻の草だとか🌈',
     obStart: 'はじめる',
-    nextUnlock: (n) => `次の新種まで あと${n}本`,
-    allUnlocked: '全種類コンプリート!🎉',
+    nextUnlock: (n) => `あと${n}本で、新しい草に出会えます`,
+    allUnlocked: '13種すべてに出会いました。図鑑コンプリート!🎉',
     reset: '除草の記録をリセット',
     resetConfirm: '本当にリセットする?(もう一度押す)',
     resetDone: '除草の記録をリセットしました。雑草の解放も最初からです',
@@ -233,7 +233,7 @@ const LOCALES = {
       'Some weeds are tougher than others. A few regrow from surviving roots…',
       '<b>The more weeds you clear, the more new species</b> start to appear',
       'Check your weed collection with the 📖 button',
-      'The goal: <b>complete the collection of all 13 species</b>. The last one is…?'
+      'Collect <b>all 13 species</b> to complete the book. The last one is said to be pure legend… 🌈'
     ],
     ok: 'OK',
     obTitle: '🫖 Welcome to the Gravel Garden',
@@ -242,10 +242,10 @@ const LOCALES = {
       ['🍂', 'Scalded weeds slowly wither. Tap withered weeds to clear them away'],
       ['🌱', 'The more you clear, the more new species appear']
     ],
-    obGoal: 'Goal: complete the collection of all 13 weeds — down to the legendary one!',
+    obGoal: 'They say 13 kinds of weeds grow in this garden. The last one… supposedly doesn\'t exist in this world 🌈',
     obStart: 'Start',
-    nextUnlock: (n) => `Next new species in ${n} more`,
-    allUnlocked: 'Collection complete! 🎉',
+    nextUnlock: (n) => `Clear ${n} more to meet a new weed`,
+    allUnlocked: 'You\'ve met all 13. Collection complete! 🎉',
     reset: 'Reset weeding records',
     resetConfirm: 'Really reset? (tap again)',
     resetDone: 'Records reset. Species unlocks start over',
@@ -274,7 +274,7 @@ const LOCALES = {
       '不同杂草的顽强程度不同,有的根还活着会再长出来…',
       '<b>除草数量越多,出现的新品种就越多</b>',
       '点📖按钮查看杂草图鉴',
-      '目标:<b>集齐全部13种杂草</b>。最后一种是…?'
+      '集齐<b>全部13种</b>即可完成图鉴。最后一种,据说是传说中的草…🌈'
     ],
     ok: 'OK',
     obTitle: '🫖 欢迎来到砾石庭院',
@@ -283,10 +283,10 @@ const LOCALES = {
       ['🍂', '被烫的草会慢慢枯萎,点一下枯草即可清理'],
       ['🌱', '除草越多,出现的新品种就越多']
     ],
-    obGoal: '目标:集齐全部13种杂草——包括最后的梦幻杂草!',
+    obGoal: '据说这座庭院里一共会长出13种杂草。最后一种…似乎是这个世界上并不存在的草🌈',
     obStart: '开始',
-    nextUnlock: (n) => `再除 ${n} 株解锁新品种`,
-    allUnlocked: '图鉴已集齐!🎉',
+    nextUnlock: (n) => `再除 ${n} 株,就能遇见新的草`,
+    allUnlocked: '13种全部遇见,图鉴完成!🎉',
     reset: '重置除草记录',
     resetConfirm: '确定要重置?(再点一次)',
     resetDone: '记录已重置,品种解锁重新开始',
@@ -315,7 +315,7 @@ const LOCALES = {
       '종류마다 끈질김이 다릅니다. 뿌리가 살아남아 다시 자라는 것도…',
       '<b>제거한 잡초가 늘어나면 새로운 종류</b>가 자라나기 시작합니다',
       '📖 버튼으로 잡초 도감을 볼 수 있습니다',
-      '목표는 <b>전체 13종 도감 완성</b>. 마지막 한 종은…?'
+      '<b>13종</b>을 모두 모으면 도감 완성. 마지막 한 종은 전설의 풀이라고… 🌈'
     ],
     ok: 'OK',
     obTitle: '🫖 자갈 정원에 오신 것을 환영합니다',
@@ -324,10 +324,10 @@ const LOCALES = {
       ['🍂', '물이 닿은 풀은 서서히 시듭니다. 시든 풀은 탭해서 정리하세요'],
       ['🌱', '제거할수록 새로운 종류의 잡초가 자라납니다']
     ],
-    obGoal: '목표: 환상의 잡초까지, 전체 13종 도감 완성!',
+    obGoal: '이 정원에는 모두 13종의 잡초가 자란다고 합니다. 마지막 한 종은… 이 세상에 존재하지 않는 풀이라나요 🌈',
     obStart: '시작하기',
-    nextUnlock: (n) => `새 품종까지 앞으로 ${n}개`,
-    allUnlocked: '도감 완성! 🎉',
+    nextUnlock: (n) => `${n}개 더 제거하면 새로운 풀을 만날 수 있어요`,
+    allUnlocked: '13종 모두 만났습니다. 도감 완성! 🎉',
     reset: '제초 기록 초기화',
     resetConfirm: '정말 초기화할까요? (한 번 더 탭)',
     resetDone: '기록이 초기화되었습니다. 잡초 해금도 처음부터입니다',
