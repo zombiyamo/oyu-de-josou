@@ -1452,24 +1452,22 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
-/* ---------------- やかんとお湯 ---------------- */
-const pour = { active: false, x: 0, y: 0, pointerId: null };
+/* ---------------- やかんとお湯 ----------------
+   指の位置=やかん。お湯はその少し先(左下)に注がれる。
+   指で着地点が隠れず、「やかんを持っている」感覚になる。 */
+const pour = { active: false, x: 0, y: 0, tx: 0, ty: 0, pointerId: null };
 let lingering = null;    // 注ぎ終わった後もしばらく湯気が立つ {x, y, ttl}
 let ringTimer = 0, wetTimer = 0;
 
-function kettlePos() {
-  // 注ぎ先の右上にやかんを置く(右端では左に反転)
-  const side = pour.x > W - 130 ? -1 : 1;
-  return {
-    x: pour.x + 62 * side,
-    y: Math.max(46, pour.y - 66),
-    side
-  };
+function updatePourTarget() {
+  const side = pour.x > 130 ? 1 : -1;   // 左端ぎわでは右側に注ぐ
+  pour.tx = clamp(pour.x - 62 * side, 14, Math.max(14, W - 14));
+  pour.ty = clamp(pour.y + 66, 30, Math.max(30, H - 12));
 }
 
 function drawKettle(time) {
-  const k = kettlePos();
-  const dx = pour.x - k.x, dy = pour.y - k.y;
+  const k = { x: pour.x, y: pour.y };
+  const dx = pour.tx - k.x, dy = pour.ty - k.y;
   const ang = Math.atan2(dy, dx);
   const spoutLen = 42;
   const sx = k.x + Math.cos(ang) * spoutLen;
@@ -1484,8 +1482,8 @@ function drawKettle(time) {
     for (let i = 0; i <= segs; i++) {
       const t = i / segs;
       const wob = Math.sin(time * 22 + t * 9) * 1.3 * t;
-      const x = lerp(sx, pour.x, t) + wob;
-      const y = lerp(sy, pour.y, t) + wob * 0.4;
+      const x = lerp(sx, pour.tx, t) + wob;
+      const y = lerp(sy, pour.ty, t) + wob * 0.4;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     if (pass === 0) {
@@ -1918,6 +1916,7 @@ canvas.addEventListener('pointerdown', (e) => {
   pour.active = true;
   pour.pointerId = e.pointerId;
   pour.x = e.clientX / ZOOM; pour.y = e.clientY / ZOOM;
+  updatePourTarget();
   try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   unlockAudio();
   setPouringSound(true);
@@ -1926,6 +1925,7 @@ canvas.addEventListener('pointerdown', (e) => {
 canvas.addEventListener('pointermove', (e) => {
   if (!pour.active || e.pointerId !== pour.pointerId) return;
   pour.x = e.clientX / ZOOM; pour.y = e.clientY / ZOOM;
+  updatePourTarget();
 });
 
 function endPour(e) {
@@ -1934,7 +1934,7 @@ function endPour(e) {
   pour.pointerId = null;
   unlockAudio();   // タッチ端末では指を離した瞬間に初めて解錠できることがある
   setPouringSound(false);
-  lingering = { x: pour.x, y: pour.y, ttl: 2.4 };
+  lingering = { x: pour.tx, y: pour.ty, ttl: 2.4 };
 }
 canvas.addEventListener('pointerup', endPour);
 canvas.addEventListener('pointercancel', endPour);
@@ -2014,16 +2014,20 @@ function update(dt, time) {
 
   // お湯を注ぐ
   if (pour.active) {
-    // 熱を加える(枯れ草に当たったら崩して片付ける)
+    // 熱を加える。お湯の着地点はやかん(指)の少し先
     for (const w of weeds) {
-      const dx = w.x - pour.x, dy = w.y - pour.y;
       const R = 36 + w.radius() * 0.4;
+      const dx = w.x - pour.tx, dy = w.y - pour.ty;
       const d2 = dx * dx + dy * dy;
-      if (d2 < R * R) {
-        if (w.wither >= 1) {
-          if (!w.removing) startCrumble(w);
-          continue;
+      if (w.wither >= 1) {
+        // 枯れ草はお湯がかかっても、指(やかん)で直接つついても片付く
+        if (!w.removing) {
+          const dxf = w.x - pour.x, dyf = w.y - pour.y;
+          if (d2 < R * R || dxf * dxf + dyf * dyf < R * R) startCrumble(w);
         }
+        continue;
+      }
+      if (d2 < R * R) {
         const fall = 1 - Math.sqrt(d2) / R;
         w.scald = Math.min(w.scald + dt * 1.15 * fall, 2.2);
         // ドクダミは根まで火が通った瞬間、湯気がブワッと立つ(復活しない合図)
@@ -2035,13 +2039,13 @@ function update(dt, time) {
     }
     // 濡れ・水しぶき・湯気・輪
     wetTimer -= dt;
-    if (wetTimer <= 0) { wetTimer = 0.07; addWet(pour.x, pour.y); }
-    emitSplash(pour.x, pour.y, dt);
-    emitSteam(pour.x, pour.y, 15, dt);
+    if (wetTimer <= 0) { wetTimer = 0.07; addWet(pour.tx, pour.ty); }
+    emitSplash(pour.tx, pour.ty, dt);
+    emitSteam(pour.tx, pour.ty, 15, dt);
     ringTimer -= dt;
     if (ringTimer <= 0) {
       ringTimer = 0.15;
-      rings.push({ x: pour.x, y: pour.y, age: 0, life: 0.5 });
+      rings.push({ x: pour.tx, y: pour.ty, age: 0, life: 0.5 });
     }
     // ぽこぽこ音(たまに連泡)
     audio.nextBubble -= dt;
