@@ -107,6 +107,22 @@
     background: rgba(0,0,0,.08); color: #666;
   }
   .setbtn.on { background: #5c7c4f; color: #fff; }
+  #shopPoints { font-size: 15px; font-weight: 800; color: #4a6440; margin: -2px 0 2px; }
+  #shopHint { font-size: 11px; opacity: .6; margin-bottom: 6px; }
+  .shoprow { display: flex; align-items: center; gap: 12px; padding: 12px 2px;
+             border-bottom: 1px solid rgba(0,0,0,.07); }
+  .shoprow:last-of-type { border-bottom: 0; }
+  .shopic { font-size: 28px; flex: none; width: 36px; text-align: center; }
+  .shopinfo { flex: 1; min-width: 0; }
+  .shopname { font-size: 14px; font-weight: 700; }
+  .shopname .owned { font-weight: 800; color: #5c7c4f; margin-left: 6px; font-size: 12.5px; }
+  .shopdesc { font-size: 11.5px; opacity: .65; margin-top: 3px; line-height: 1.5; }
+  .shopbuy {
+    flex: none; border: 0; cursor: pointer; border-radius: 999px;
+    min-width: 74px; padding: 9px 12px; font-size: 12.5px; font-weight: 700;
+    background: #5c7c4f; color: #fff;
+  }
+  .shopbuy:disabled { background: rgba(0,0,0,.08); color: #999; cursor: default; }
   #bookNext { font-size: 12.5px; opacity: .8; margin: -4px 0 10px; }
   .obstep { display: flex; gap: 12px; align-items: flex-start; font-size: 13.5px; line-height: 1.7; margin: 10px 0; }
   .obstep .ic { font-size: 22px; flex: none; }
@@ -162,6 +178,11 @@
     #hud { gap: 6px; }
     #hud .hudbtn + .hudbtn { margin-left: 0; }
   }
+  /* ボタン5つ+統計2行がぎりぎり収まる極小幅 */
+  @media (max-width: 400px) {
+    #hud { gap: 4px; padding-left: 8px; padding-right: 8px; }
+    #stats { font-size: 10.5px; }
+  }
 </style>
 </head>
 <body>
@@ -172,6 +193,7 @@
   <button class="hudbtn" id="helpBtn" aria-label="あそびかた">?</button>
   <button class="hudbtn" id="bookBtn" aria-label="雑草コレクション">📖</button>
   <button class="hudbtn" id="kettleBtn" aria-label="やかんコレクション">🫖</button>
+  <button class="hudbtn" id="shopBtn" aria-label="ホームセンター">🛒</button>
   <button class="hudbtn" id="settingsBtn" aria-label="設定">⚙️</button>
 </div>
 <div id="hint" class="hide"></div>
@@ -196,6 +218,13 @@
     <h2 id="kettleTitle">🫖 やかんコレクション</h2>
     <div id="kettleNext"></div>
     <div id="kettleGrid"></div>
+  </div>
+  <div class="panel hidden" id="shopPanel">
+    <button class="closex" data-close aria-label="閉じる">✕</button>
+    <h2 id="shopTitle">🛒 ホームセンター</h2>
+    <div id="shopPoints"></div>
+    <div id="shopHint"></div>
+    <div id="shopList"></div>
   </div>
   <div class="panel hidden" id="settingsPanel">
     <button class="closex" data-close aria-label="閉じる">✕</button>
@@ -275,6 +304,7 @@ const LOCALES = {
       'たまに<b>✨金のやかん</b>(20秒間2本注ぎ)や<b>🧪除草剤</b>が落ちています。タップか、やかんで触れると発動',
       '除草剤は<b>コモン(緑)50%・アンコモン(青)60%・レア(紫)100%</b>の割合で、波が届いた草を枯らします',
       '📖ボタンで雑草コレクションを見られます',
+      '🛒<b>ホームセンター</b>では、除草ポイント(1本=1pt)で<b>自動やかん・スプリンクラー・ヤギ</b>などの自動化アイテムが買えます',
       '図鑑を<b>全13種</b>そろえたらコンプリート。最後のひとつは…?'
     ],
     ok: 'OK',
@@ -303,6 +333,18 @@ const LOCALES = {
     psName: '🔋 省電力モード',
     psDesc: '描画を軽くして発熱と電池消費をおさえます。見た目がほんの少し柔らかくなります',
     on: 'オン', off: 'オフ',
+    shopTitle: '🛒 ホームセンター',
+    shopPoints: (n) => `除草ポイント ${n}pt`,
+    shopHint: '草を1本片付けるごとに1ポイントたまります(使っても図鑑の進行は減りません)',
+    shopBuy: (c) => `${c}ptで買う`,
+    shopMax: 'これ以上置けない',
+    shopNames: { kettle: '自動やかん', sprinkler: '熱湯スプリンクラー', goat: 'ヤギ' },
+    shopDescs: {
+      kettle: '庭に置くと、近くの草にときどきお湯をかけてくれる働き者',
+      sprinkler: 'まわりの草にまとめて熱湯をまく。広範囲がじわじわ枯れる',
+      goat: '庭をのんびり歩き回って、枯れ草をもぐもぐ片付けてくれる(片付けた分はポイントになる)'
+    },
+    shopBought: (name) => `${name}を庭に置きました!`,
     bookTitle: '📖 雑草コレクション',
     kettleTitle: '🫖 やかんコレクション',
     kettleNames: ['ステンレス', '銅のやかん', '白ホーロー', '南部鉄器', '赤ホーロー',
@@ -347,6 +389,7 @@ const LOCALES = {
       'Sometimes a <b>✨golden kettle</b> (two kettles for 20s) or <b>🧪weed killer</b> drops — tap it or touch it with the kettle to use',
       'Weed killer comes in <b>Common (green) 50%, Uncommon (blue) 60%, Rare (purple) 100%</b> kill rates',
       'Check your weed collection with the 📖 button',
+      'The 🛒<b>Garden Store</b> sells automation — <b>auto kettles, sprinklers and goats</b> — for weeding points (1 weed = 1pt)',
       'Collect <b>all 13 species</b> to complete the book. The last one…?'
     ],
     ok: 'OK',
@@ -375,6 +418,18 @@ const LOCALES = {
     psName: '🔋 Battery saver',
     psDesc: 'Lightens rendering to reduce heat and battery drain. Visuals get a touch softer',
     on: 'On', off: 'Off',
+    shopTitle: '🛒 Garden Store',
+    shopPoints: (n) => `Weeding points: ${n}pt`,
+    shopHint: 'Every weed you clear earns 1 point (spending never affects your collection progress)',
+    shopBuy: (c) => `Buy for ${c}pt`,
+    shopMax: 'No room for more',
+    shopNames: { kettle: 'Auto Kettle', sprinkler: 'Hot Sprinkler', goat: 'Goat' },
+    shopDescs: {
+      kettle: 'Sits in the garden and pours hot water on nearby weeds now and then',
+      sprinkler: 'Sprays scalding water over the area around it. Slowly withers a wide patch',
+      goat: 'Wanders the garden munching up withered weeds (its cleanups earn you points)'
+    },
+    shopBought: (name) => `A ${name} has been placed in your garden!`,
     bookTitle: '📖 Weed Collection',
     kettleTitle: '🫖 Kettle Collection',
     kettleNames: ['Stainless', 'Copper', 'White Enamel', 'Cast Iron', 'Red Enamel',
@@ -419,6 +474,7 @@ const LOCALES = {
       '偶尔会掉落<b>✨金水壶</b>(20秒双壶)或<b>🧪除草剂</b>,点击或用水壶碰到即可发动',
       '除草剂分<b>普通(绿)50%、高级(蓝)60%、稀有(紫)100%</b>的除草率',
       '点📖按钮查看杂草图鉴',
+      '🛒<b>园艺商店</b>里可以用除草点数(1株=1pt)购买<b>自动水壶、喷灌器、山羊</b>等自动化道具',
       '集齐<b>全部13种</b>即可完成图鉴。最后一种是…?'
     ],
     ok: 'OK',
@@ -447,6 +503,18 @@ const LOCALES = {
     psName: '🔋 省电模式',
     psDesc: '降低渲染负担,减少发热和耗电。画面会稍微柔和一点',
     on: '开', off: '关',
+    shopTitle: '🛒 园艺商店',
+    shopPoints: (n) => `除草点数 ${n}pt`,
+    shopHint: '每清理1株杂草获得1点(消费不会影响图鉴进度)',
+    shopBuy: (c) => `${c}pt购买`,
+    shopMax: '放不下更多了',
+    shopNames: { kettle: '自动水壶', sprinkler: '热水喷灌器', goat: '山羊' },
+    shopDescs: {
+      kettle: '放在院子里,时不时给附近的杂草浇热水',
+      sprinkler: '向周围一片喷洒热水,大范围慢慢枯萎',
+      goat: '在院子里悠闲散步,把枯草吃得干干净净(吃掉的也算点数)'
+    },
+    shopBought: (name) => `${name}已放进院子!`,
     bookTitle: '📖 杂草图鉴',
     kettleTitle: '🫖 水壶收藏',
     kettleNames: ['不锈钢', '铜壶', '白珐琅', '铸铁壶', '红珐琅',
@@ -491,6 +559,7 @@ const LOCALES = {
       '가끔 <b>✨황금 주전자</b>(20초간 주전자 2개)나 <b>🧪제초제</b>가 떨어집니다. 탭하거나 주전자로 닿으면 발동',
       '제초제는 <b>일반(초록) 50%, 고급(파랑) 60%, 희귀(보라) 100%</b>의 비율로 풀을 시들게 합니다',
       '📖 버튼으로 잡초 도감을 볼 수 있습니다',
+      '🛒<b>원예용품점</b>에서 제초 포인트(1개=1pt)로 <b>자동 주전자・스프링클러・염소</b> 같은 자동화 아이템을 살 수 있습니다',
       '<b>13종</b>을 모두 모으면 도감 완성. 마지막 한 종은…?'
     ],
     ok: 'OK',
@@ -519,6 +588,18 @@ const LOCALES = {
     psName: '🔋 절전 모드',
     psDesc: '렌더링을 가볍게 해 발열과 배터리 소모를 줄입니다. 화면이 아주 살짝 부드러워집니다',
     on: '켬', off: '끔',
+    shopTitle: '🛒 원예용품점',
+    shopPoints: (n) => `제초 포인트 ${n}pt`,
+    shopHint: '잡초 1개를 치울 때마다 1포인트(사용해도 도감 진행에는 영향 없음)',
+    shopBuy: (c) => `${c}pt로 구매`,
+    shopMax: '더 놓을 자리가 없어요',
+    shopNames: { kettle: '자동 주전자', sprinkler: '열탕 스프링클러', goat: '염소' },
+    shopDescs: {
+      kettle: '정원에 두면 가까운 잡초에 가끔 뜨거운 물을 부어 줍니다',
+      sprinkler: '주변에 뜨거운 물을 뿌려 넓은 범위를 서서히 시들게 합니다',
+      goat: '정원을 돌아다니며 마른 풀을 냠냠 치워 줍니다(치운 만큼 포인트가 됩니다)'
+    },
+    shopBought: (name) => `${name}를 정원에 두었습니다!`,
     bookTitle: '📖 잡초 도감',
     kettleTitle: '🫖 주전자 컬렉션',
     kettleNames: ['스테인리스', '구리 주전자', '흰 법랑', '무쇠 주전자', '빨간 법랑',
@@ -580,6 +661,8 @@ function applyLocale() {
   document.getElementById('sndDesc').textContent = L.sndDesc;
   document.getElementById('psName').textContent = L.psName;
   document.getElementById('psDesc').textContent = L.psDesc;
+  document.getElementById('shopTitle').textContent = L.shopTitle;
+  document.getElementById('shopBtn').setAttribute('aria-label', L.shopTitle);
 }
 
 /* ---------------- 砂利の背景 ---------------- */
@@ -1789,6 +1872,283 @@ const HERB_TIERS = {
   3: { p: 1.0, boost: 60, bottle: '#8a5fb8', stroke: '#5c3d80', glow: 'rgba(200,160,255,0.5)', ring: '200,160,255' }
 };
 let regrowBoostT = 0;      // 除草剤の後、自然が戻ってくる(リスポーン高速化)残り秒数
+
+/* ---------------- ホームセンター(自動化アイテム) ----------------
+   除草ポイント = 累計除草数 - 使った分。買っても図鑑の進行(累計)は減らない */
+const SHOP_ITEMS = {
+  kettle:    { icon: '🫖', base: 50,   mult: 1.5, max: 8 },
+  sprinkler: { icon: '💦', base: 400,  mult: 1.5, max: 4 },
+  goat:      { icon: '🐐', base: 1500, mult: 1.6, max: 3 },
+};
+let spentPoints = loadLS('oyu_spent', 0);
+const autoKettles = [], autoSprinklers = [], goats = [];
+
+const points = () => Math.max(0, totalKilled - spentPoints);
+const ownedCount = (kind) =>
+  kind === 'kettle' ? autoKettles.length : kind === 'sprinkler' ? autoSprinklers.length : goats.length;
+const itemCost = (kind) =>
+  Math.round(SHOP_ITEMS[kind].base * Math.pow(SHOP_ITEMS[kind].mult, ownedCount(kind)));
+
+// 端や他の設置物と被らない置き場所を探す
+function autoSpot() {
+  for (let tries = 0; tries < 40; tries++) {
+    const x = rnd(50, Math.max(60, W - 50));
+    const y = rnd(70, Math.max(80, H - 40));
+    let ok = true;
+    for (const d of [...autoKettles, ...autoSprinklers]) {
+      if ((d.x - x) ** 2 + (d.y - y) ** 2 < 70 * 70) { ok = false; break; }
+    }
+    if (ok) return { x, y };
+  }
+  return { x: rnd(60, Math.max(70, W - 60)), y: rnd(80, Math.max(90, H - 50)) };
+}
+
+function placeAutoItem(kind, pos) {
+  const p = pos || autoSpot();
+  if (kind === 'kettle') {
+    autoKettles.push({ x: p.x, y: p.y, timer: rnd(2, 5), fireT: 0, target: null });
+  } else if (kind === 'sprinkler') {
+    autoSprinklers.push({ x: p.x, y: p.y, timer: rnd(3, 6), sprayT: 0, arm: rnd(TAU) });
+  } else {
+    goats.push({
+      x: p.x, y: p.y, dir: rnd(TAU), bob: rnd(TAU),
+      wander: null, wanderT: 0, eatT: 0, eating: null,
+    });
+  }
+}
+
+function saveAutoItems() {
+  saveLS('oyu_autoItems', {
+    kettle: autoKettles.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y) })),
+    sprinkler: autoSprinklers.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y) })),
+    goat: goats.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y) })),
+  });
+  saveLS('oyu_spent', spentPoints);
+}
+
+{ // 保存済みの設置物を復元(座標は保存時のもの。画面外はupdate側でクランプされる)
+  const saved = loadLS('oyu_autoItems', {});
+  for (const kind of ['kettle', 'sprinkler', 'goat']) {
+    for (const p of (saved[kind] || [])) placeAutoItem(kind, p);
+  }
+}
+
+function updateAutomation(dt) {
+  // 自動やかん: ときどき近くの草を狙ってお湯をかける
+  for (const d of autoKettles) {
+    d.x = clamp(d.x, 40, Math.max(40, W - 40));
+    d.y = clamp(d.y, 60, Math.max(60, H - 30));
+    if (d.fireT > 0) {
+      d.fireT -= dt;
+      const w = d.target;
+      if (w && !w.removing && w.wither < 1) {
+        w.scald = Math.min(w.scald + dt * 0.9, 2.2);
+        addWet(w.x, w.y, 14);
+        emitSteam(w.x, w.y, 5, dt);
+      } else d.fireT = 0;
+      if (d.fireT <= 0) { d.target = null; d.timer = rnd(5, 8); }
+    } else {
+      d.timer -= dt;
+      if (d.timer <= 0) {
+        let best = null, bd = 90 * 90;
+        for (const w of weeds) {
+          if (w.removing || w.wither >= 1) continue;
+          const dx = w.x - d.x, dy = w.y - d.y;
+          const dist = dx * dx + dy * dy;
+          if (dist < bd && dist > 12 * 12) { bd = dist; best = w; }
+        }
+        if (best) { d.target = best; d.fireT = 1.4; }
+        else d.timer = rnd(2, 4);
+      }
+    }
+  }
+  // スプリンクラー: 周囲にまとめて散水
+  for (const d of autoSprinklers) {
+    d.x = clamp(d.x, 40, Math.max(40, W - 40));
+    d.y = clamp(d.y, 60, Math.max(60, H - 30));
+    if (d.sprayT > 0) {
+      d.sprayT -= dt;
+      d.arm += dt * 5;
+      for (const w of weeds) {
+        if (w.removing || w.wither >= 1) continue;
+        const dx = w.x - d.x, dy = w.y - d.y;
+        if (dx * dx + dy * dy < 60 * 60) w.scald = Math.min(w.scald + dt * 0.35, 2.2);
+      }
+      if (Math.random() < dt * 26) addWet(d.x + rnd(-52, 52), d.y + rnd(-52, 52), 10);
+      if (Math.random() < dt * 7) emitSteam(d.x + rnd(-40, 40), d.y + rnd(-40, 40), 3, dt * 8);
+      if (d.sprayT <= 0) d.timer = rnd(9, 13);
+    } else {
+      d.timer -= dt;
+      if (d.timer <= 0) d.sprayT = 2.2;
+    }
+  }
+  // ヤギ: 枯れ草を探して食べる。なければのんびり散歩
+  for (const g2 of goats) {
+    g2.bob += dt * 6;
+    if (g2.eatT > 0) {
+      g2.eatT -= dt;
+      if (g2.eatT <= 0) {
+        const w = g2.eating;
+        if (w && w.wither >= 1 && !w.removing) startCrumble(w);
+        g2.eating = null;
+      }
+      continue;
+    }
+    let husk = null, hd = 260 * 260;
+    for (const w of weeds) {
+      if (w.wither >= 1 && !w.removing) {
+        const dx = w.x - g2.x, dy = w.y - g2.y;
+        const dist = dx * dx + dy * dy;
+        if (dist < hd) { hd = dist; husk = w; }
+      }
+    }
+    let tx, ty, sp;
+    if (husk) { tx = husk.x; ty = husk.y; sp = 16; }
+    else {
+      g2.wanderT -= dt;
+      if (!g2.wander || g2.wanderT <= 0) {
+        g2.wander = { x: rnd(50, Math.max(60, W - 50)), y: rnd(70, Math.max(80, H - 40)) };
+        g2.wanderT = rnd(4, 9);
+      }
+      tx = g2.wander.x; ty = g2.wander.y; sp = 7;
+    }
+    const dx = tx - g2.x, dy = ty - g2.y;
+    if (Math.hypot(dx, dy) < 8) {
+      if (husk) { g2.eatT = 1.1; g2.eating = husk; }
+      else g2.wanderT = 0;
+    } else {
+      const ta = Math.atan2(dy, dx);
+      let da = ta - g2.dir;
+      while (da > Math.PI) da -= TAU;
+      while (da < -Math.PI) da += TAU;
+      g2.dir += clamp(da, -dt * 3, dt * 3);
+      g2.x = clamp(g2.x + Math.cos(g2.dir) * sp * dt, 20, Math.max(20, W - 20));
+      g2.y = clamp(g2.y + Math.sin(g2.dir) * sp * dt, 50, Math.max(50, H - 15));
+    }
+  }
+}
+
+function drawAutoKettle(d, time) {
+  const firing = d.fireT > 0 && d.target;
+  // 0.8倍サイズで置く。注ぎ先はスケール分を補正して実位置に合わせる
+  const tx = firing ? d.x + (d.target.x - d.x) / 0.8 : d.x - 20;
+  const ty = firing ? d.y + (d.target.y - d.y) / 0.8 : d.y + 26;
+  ctx.save();
+  ctx.translate(d.x, d.y);
+  ctx.scale(0.8, 0.8);
+  ctx.translate(-d.x, -d.y);
+  drawKettleAt(d.x, d.y, tx, ty, time, KETTLE_SKINS[0], !!firing);
+  ctx.restore();
+}
+
+function drawSprinkler(d) {
+  ctx.save();
+  ctx.translate(d.x, d.y);
+  // 影と本体(緑の小さな散水栓)
+  ctx.beginPath();
+  ctx.ellipse(1, 1.6, 5.5, 4, 0, 0, TAU);
+  ctx.fillStyle = 'rgba(14,10,5,0.3)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, 0, 4.6, 0, TAU);
+  ctx.fillStyle = '#3f5a38';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(10,14,8,0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(-1.2, -1.2, 1.6, 0, TAU);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fill();
+  if (d.sprayT > 0) {
+    // 回転する水のアーム+しぶく飛沫
+    for (let a2 = 0; a2 < 3; a2++) {
+      const ang = d.arm + (a2 / 3) * TAU;
+      ctx.strokeStyle = 'rgba(210,235,255,0.5)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang) * 5, Math.sin(ang) * 5);
+      ctx.quadraticCurveTo(Math.cos(ang + 0.25) * 22, Math.sin(ang + 0.25) * 22,
+                           Math.cos(ang + 0.45) * 38, Math.sin(ang + 0.45) * 38);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(220,240,255,0.55)';
+      for (let k = 0; k < 4; k++) {
+        const rr = 40 + k * 5, aa = ang + 0.45 + k * 0.06;
+        ctx.beginPath();
+        ctx.arc(Math.cos(aa) * rr, Math.sin(aa) * rr, 1, 0, TAU);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function drawGoat(g2, time) {
+  const eating = g2.eatT > 0;
+  ctx.save();
+  ctx.translate(g2.x, g2.y);
+  // 接地影
+  ctx.beginPath();
+  ctx.ellipse(1.5, 2, 10, 6.5, 0, 0, TAU);
+  ctx.fillStyle = 'rgba(14,10,5,0.26)';
+  ctx.fill();
+  ctx.rotate(g2.dir);
+  // 脚(歩くとぱたぱた)
+  ctx.fillStyle = '#8a8378';
+  for (const [lx, ly, ph] of [[4, -4.5, 0], [4, 4.5, Math.PI], [-5, -4.5, Math.PI], [-5, 4.5, 0]]) {
+    ctx.beginPath();
+    ctx.arc(lx + Math.sin(g2.bob + ph) * (eating ? 0.2 : 1.2), ly, 1.6, 0, TAU);
+    ctx.fill();
+  }
+  // 体
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 9.5, 6.2, 0, 0, TAU);
+  ctx.fillStyle = '#ece5d4';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(90,80,60,0.35)';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(-1, 0, 5.5, 3.6, 0, 0, TAU);
+  ctx.fillStyle = 'rgba(205,195,172,0.55)';
+  ctx.fill();
+  // 頭(食べている間はもぐもぐ揺れる)
+  ctx.save();
+  ctx.translate(9, 0);
+  ctx.rotate(eating ? Math.sin(time * 18) * 0.22 : Math.sin(g2.bob * 0.7) * 0.1);
+  ctx.strokeStyle = '#7a6a4f';
+  ctx.lineWidth = 1.4;
+  for (const s2 of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(-1, s2 * 2);
+    ctx.quadraticCurveTo(-5, s2 * 3.4, -6.5, s2 * 2);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#e2d9c4';
+  for (const s2 of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(0, s2 * 4.2, 2.8, 1.4, s2 * 0.5, 0, TAU);
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.ellipse(1.5, 0, 4.6, 3.2, 0, 0, TAU);
+  ctx.fillStyle = '#e9e1cf';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(90,80,60,0.3)';
+  ctx.lineWidth = 0.7;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(4.4, 0, 1.8, 1.6, 0, 0, TAU);
+  ctx.fillStyle = '#c9bda4';
+  ctx.fill();
+  ctx.restore();
+  // しっぽ
+  ctx.beginPath();
+  ctx.ellipse(-9.8, 0, 1.9, 1.3, 0, 0, TAU);
+  ctx.fillStyle = '#f4efe3';
+  ctx.fill();
+  ctx.restore();
+}
 const dropHintShown = {};  // 種類ごとの初回ドロップ案内
 
 function pourTargets() {
@@ -2249,6 +2609,7 @@ const elHelpPanel = document.getElementById('helpPanel');
 const elBookPanel = document.getElementById('bookPanel');
 const elKettlePanel = document.getElementById('kettlePanel');
 const elSettingsPanel = document.getElementById('settingsPanel');
+const elShopPanel = document.getElementById('shopPanel');
 const elOnboardPanel = document.getElementById('onboardPanel');
 
 function openPanel(which) {
@@ -2257,10 +2618,49 @@ function openPanel(which) {
   elBookPanel.classList.toggle('hidden', which !== 'book');
   elKettlePanel.classList.toggle('hidden', which !== 'kettle');
   elSettingsPanel.classList.toggle('hidden', which !== 'settings');
+  elShopPanel.classList.toggle('hidden', which !== 'shop');
   elOnboardPanel.classList.toggle('hidden', which !== 'onboard');
   if (which === 'book') buildBook();
   if (which === 'kettle') buildKettlePanel();
+  if (which === 'shop') buildShop();
 }
+
+function buildShop() {
+  document.getElementById('shopPoints').textContent = L.shopPoints(points());
+  document.getElementById('shopHint').textContent = L.shopHint;
+  const list = document.getElementById('shopList');
+  list.innerHTML = '';
+  for (const kind of Object.keys(SHOP_ITEMS)) {
+    const it = SHOP_ITEMS[kind];
+    const owned = ownedCount(kind);
+    const cost = itemCost(kind);
+    const maxed = owned >= it.max;
+    const row = document.createElement('div');
+    row.className = 'shoprow';
+    row.innerHTML = `
+      <div class="shopic">${it.icon}</div>
+      <div class="shopinfo">
+        <div class="shopname">${L.shopNames[kind]}${owned ? `<span class="owned">×${owned}</span>` : ''}</div>
+        <div class="shopdesc">${L.shopDescs[kind]}</div>
+      </div>
+      <button class="shopbuy" data-kind="${kind}" ${maxed || points() < cost ? 'disabled' : ''}>${maxed ? L.shopMax : L.shopBuy(cost)}</button>`;
+    list.appendChild(row);
+  }
+}
+
+document.getElementById('shopList').addEventListener('click', (e) => {
+  const btn = e.target.closest('.shopbuy');
+  if (!btn || btn.disabled) return;
+  const kind = btn.dataset.kind;
+  const cost = itemCost(kind);
+  if (points() < cost || ownedCount(kind) >= SHOP_ITEMS[kind].max) return;
+  spentPoints += cost;
+  placeAutoItem(kind);
+  saveAutoItems();
+  unlockChime();
+  showToast(L.shopBought(L.shopNames[kind]));
+  buildShop();
+});
 function closePanel() {
   const wasOnboarding = !elOnboardPanel.classList.contains('hidden');
   elOverlay.classList.add('hidden');
@@ -2273,6 +2673,7 @@ function closePanel() {
 document.getElementById('helpBtn').addEventListener('click', () => openPanel('help'));
 document.getElementById('bookBtn').addEventListener('click', () => openPanel('book'));
 document.getElementById('kettleBtn').addEventListener('click', () => openPanel('kettle'));
+document.getElementById('shopBtn').addEventListener('click', () => openPanel('shop'));
 document.getElementById('settingsBtn').addEventListener('click', () => openPanel('settings'));
 document.getElementById('startBtn').addEventListener('click', closePanel);
 document.getElementById('obStartBtn').addEventListener('click', closePanel);
@@ -2303,6 +2704,11 @@ elReset.addEventListener('click', () => {
   saveLS('oyu_killsByType', {});
   saveLS('oyu_elapsed', 0);
   saveLS('oyu_kettleSkin', 0);
+  spentPoints = 0;
+  autoKettles.length = 0;
+  autoSprinklers.length = 0;
+  goats.length = 0;
+  saveAutoItems();
   updateHud();
   elReset.classList.remove('arm');
   elReset.textContent = L.reset;
@@ -2639,6 +3045,8 @@ function update(dt, time) {
     if (lingering.ttl <= 0) lingering = null;
   }
 
+  updateAutomation(dt);
+
   // 雑草の成長と枯れ
   for (let i = weeds.length - 1; i >= 0; i--) {
     const w = weeds[i];
@@ -2926,6 +3334,11 @@ function render(time) {
     ctx.stroke();
   }
 
+  // ホームセンターの設置物(エフェクトの上・注ぎやかんの下)
+  for (const d of autoSprinklers) drawSprinkler(d);
+  for (const d of autoKettles) drawAutoKettle(d, time);
+  for (const g2 of goats) drawGoat(g2, time);
+
   if (pour.active && pour.started) {
     drawKettleAt(pour.x, pour.y, pour.tx, pour.ty, time,
       KETTLE_SKINS[kettleSkin] || KETTLE_SKINS[0], true);
@@ -2962,6 +3375,9 @@ function sceneCalm() {
   if (pour.active || lingering || herbicideWave || wetActive) return false;
   if (steam.length || splashes.length || flakes.length || rings.length) return false;
   if (pickups.length) return false;   // アイテムはきらめきアニメがある
+  if (goats.length) return false;     // ヤギは常に歩き回っている
+  for (const d of autoKettles) if (d.fireT > 0) return false;
+  for (const d of autoSprinklers) if (d.sprayT > 0) return false;
   for (const w of weeds) if (!w._inLayer) return false;   // 生えかけ・枯れ進行中の草
   return true;
 }
@@ -3007,6 +3423,9 @@ function resize() {
     const fx = W / oldW, fy = H / oldH;
     for (const w of weeds) { w.x *= fx; w.y *= fy; }
     for (const r of roots) { r.x *= fx; r.y *= fy; }
+    for (const d of autoKettles) { d.x *= fx; d.y *= fy; }
+    for (const d of autoSprinklers) { d.x *= fx; d.y *= fy; }
+    for (const g2 of goats) { g2.x *= fx; g2.y *= fy; g2.wander = null; }
   }
   if (!gravelCanvas || !wetCanvas) {
     // 初回だけ即時生成
