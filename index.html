@@ -2133,12 +2133,13 @@ function updateAutomation(dt) {
 
 function drawAutoKettle(d, time) {
   const firing = d.fireT > 0 && d.target;
-  // 0.8倍サイズで置く。注ぎ先はスケール分を補正して実位置に合わせる
-  const tx = firing ? d.x + (d.target.x - d.x) / 0.8 : d.x - 20;
-  const ty = firing ? d.y + (d.target.y - d.y) / 0.8 : d.y + 26;
+  // 控えめな0.6倍サイズで置く。注ぎ先はスケール分を補正して実位置に合わせる
+  const S2 = 0.6;
+  const tx = firing ? d.x + (d.target.x - d.x) / S2 : d.x - 20;
+  const ty = firing ? d.y + (d.target.y - d.y) / S2 : d.y + 26;
   ctx.save();
   ctx.translate(d.x, d.y);
-  ctx.scale(0.8, 0.8);
+  ctx.scale(S2, S2);
   ctx.translate(-d.x, -d.y);
   drawKettleAt(d.x, d.y, tx, ty, time, KETTLE_SKINS[0], !!firing);
   ctx.restore();
