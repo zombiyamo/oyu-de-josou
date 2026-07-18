@@ -351,7 +351,7 @@ const LOCALES = {
       sprinkler: '竹筒にお湯がたまると、カコンッと傾いてまわりの草に熱湯をまく。音も風情もある働き者',
       sweeper: '定期的に風が吹き抜けて、枯れ草をぜんぶまとめて片付ける(買い切り)。買い足すと間隔が短くなる: 10秒→5秒→3秒→2秒',
       goat: 'ぜんまい仕掛けのヤギ。庭を歩き回って、枯れ草も伸びた草ももぐもぐ回収してくれる(回収した分はポイントになる)',
-      stone: '庭の一角(画面の3割ほど)をしっとりした苔の庭に。岩が苔に埋もれ、そこには草が生えない',
+      stone: '土の地面に自然石の岩組を据えた庭(画面の3割ほど)。岩のすき間を草が縁取る。そこには雑草が生えない',
       pond: '庭の主役になる大きな池(画面の5割ほど)。錦鯉が泳ぎ蓮が浮かぶ。そこには草が生えない'
     },
     shopBought: (name) => `${name}を庭に置きました!`,
@@ -441,7 +441,7 @@ const LOCALES = {
       sprinkler: 'A bamboo fountain that fills with hot water, then tips with a "konk" and splashes the weeds around it',
       sweeper: 'A gust sweeps through periodically, clearing every withered weed at once (one-time upgrade). Buy again to shorten the interval: 10s→5s→3s→2s',
       goat: 'A wind-up goat. Wanders the garden munching withered and growing weeds alike (its cleanups earn you points)',
-      stone: 'Turns a corner of the garden (about 30% of the screen) into a serene moss garden with half-buried rocks. Weeds never grow on moss',
+      stone: 'A cluster of weathered boulders on packed earth (about 30% of the screen), fringed with grass. Weeds never grow there',
       pond: 'A grand pond (about half the screen) with koi and lotus. Weeds keep clear of it'
     },
     shopBought: (name) => `A ${name} has been placed in your garden!`,
@@ -531,7 +531,7 @@ const LOCALES = {
       sprinkler: '灌满热水的竹筒定期"咔嗒"一声倾倒,把热水洒向周围的杂草,还有风情十足的敲石声',
       sweeper: '定期有一阵风吹过,把所有枯草一次性清走(一次性升级)。再次购买可缩短间隔: 10秒→5秒→3秒→2秒',
       goat: '发条驱动的山羊,在院子里散步,枯草和杂草都吃得干干净净(收走的也算点数)',
-      stone: '把庭院一角(约屏幕三成)变成幽静的苔藓庭园,岩石半埋苔中。苔上不长草',
+      stone: '在夯实的土地上安置天然岩组(约屏幕三成),石缝间镶着青草。那里不长杂草',
       pond: '占据半个庭院的大水池,锦鲤游弋、莲叶漂浮。那里不长草'
     },
     shopBought: (name) => `${name}已放进院子!`,
@@ -621,7 +621,7 @@ const LOCALES = {
       sprinkler: '대나무 통에 뜨거운 물이 차면 "콩" 소리와 함께 기울어져 주변 잡초에 물을 뿌립니다',
       sweeper: '주기적으로 바람이 불어 마른 풀을 한꺼번에 치웁니다(영구 업그레이드). 추가 구매로 간격이 짧아집니다: 10초→5초→3초→2초',
       goat: '태엽으로 움직이는 염소. 정원을 돌아다니며 마른 풀도 자란 풀도 냠냠 치워 줍니다(치운 만큼 포인트)',
-      stone: '정원 한켠(화면의 약 30%)을 촉촉한 이끼 정원으로. 바위가 이끼에 묻히고, 그곳에는 풀이 나지 않습니다',
+      stone: '다져진 흙 위에 자연석 바위를 놓은 정원(화면의 약 30%). 바위 틈을 풀이 두릅니다. 그곳에는 잡초가 나지 않습니다',
       pond: '정원의 주인공이 되는 큰 연못(화면의 약 50%). 비단잉어가 헤엄치고 연잎이 떠 있습니다. 그곳에는 풀이 나지 않습니다'
     },
     shopBought: (name) => `${name}를 정원에 두었습니다!`,
@@ -2342,102 +2342,140 @@ const tracePath = (g, pts) => {
   g.closePath();
 };
 
-// 景石: 苔庭に据える大岩(多角形+面取り+ヒビ+裾から苔がせり上がる)
-function drawBoulder(g, x, y, rad, r) {
-  const n = 7 + Math.floor(r(3));
-  const rot = r(TAU);
-  const ex = r(0.9, 1.35);
+// 自然石: 風化して丸みを帯びた岩。角ばらない滑らかな輪郭+染み・地衣類の斑。
+// flat=true で平たいスラブ状(半分土に埋まった一枚岩)。輪郭の点列を返す
+function drawBoulder(g, x, y, rad, r, flat) {
+  const n = 16;
+  const p1 = r(TAU), p2 = r(TAU), p3 = r(TAU);
+  const ex = r(1.0, 1.5);
+  const squash = flat ? r(0.6, 0.78) : r(0.85, 1.0);
   const pts = [];
   for (let i = 0; i < n; i++) {
-    const a = rot + (i / n) * TAU + r(-0.18, 0.18);
-    const rr = rad * r(0.72, 1.02);
-    pts.push([x + Math.cos(a) * rr * ex, y + Math.sin(a) * rr]);
+    const a = (i / n) * TAU;
+    const rr = rad * (1 + Math.sin(a * 2 + p1) * 0.11 + Math.sin(a * 3 + p2) * 0.07 +
+                      Math.sin(a * 5 + p3) * 0.035);
+    pts.push([x + Math.cos(a) * rr * ex, y + Math.sin(a) * rr * squash]);
   }
-  const path = () => {
+  // 中点を通る二次曲線でなめらかな閉曲線に(直線を使わない)
+  const mid = (i) => [(pts[i][0] + pts[(i + 1) % n][0]) / 2, (pts[i][1] + pts[(i + 1) % n][1]) / 2];
+  const smoothPath = () => {
+    const m0 = mid(n - 1);
     g.beginPath();
-    g.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < n; i++) g.lineTo(pts[i][0], pts[i][1]);
+    g.moveTo(m0[0], m0[1]);
+    for (let i = 0; i < n; i++) {
+      const m = mid(i);
+      g.quadraticCurveTo(pts[i][0], pts[i][1], m[0], m[1]);
+    }
     g.closePath();
   };
-  // 接地の影と、根元の苔だまり(岩のまわりは苔が濃くなる)
-  const ao = g.createRadialGradient(x, y + rad * 0.15, rad * 0.4, x, y + rad * 0.15, rad * 1.45);
-  ao.addColorStop(0, 'rgba(16,22,12,0.5)');
-  ao.addColorStop(1, 'rgba(16,22,12,0)');
+  // 接地の影
+  const ao = g.createRadialGradient(x, y + rad * 0.2, rad * 0.4, x, y + rad * 0.2, rad * 1.4);
+  ao.addColorStop(0, 'rgba(20,18,10,0.45)');
+  ao.addColorStop(1, 'rgba(20,18,10,0)');
   g.fillStyle = ao;
   g.beginPath();
-  g.ellipse(x, y + rad * 0.15, rad * 1.5 * ex, rad * 1.3, 0, 0, TAU);
+  g.ellipse(x + rad * 0.06, y + rad * 0.18, rad * 1.45 * ex, rad * 1.25 * squash, 0, 0, TAU);
   g.fill();
-  // 岩体(左上の光)
-  const grad = g.createLinearGradient(x - rad, y - rad, x + rad, y + rad);
-  grad.addColorStop(0, '#9a9da2');
-  grad.addColorStop(0.5, '#6e7278');
-  grad.addColorStop(1, '#484c52');
-  path();
+  // 岩体: 風化したあたたかいグレー(左上の光)
+  const grad = g.createLinearGradient(x - rad * ex, y - rad, x + rad * ex, y + rad);
+  if (flat) {
+    grad.addColorStop(0, '#9b968b');
+    grad.addColorStop(0.55, '#807b70');
+    grad.addColorStop(1, '#615c51');
+  } else {
+    grad.addColorStop(0, '#918d83');
+    grad.addColorStop(0.5, '#726e64');
+    grad.addColorStop(1, '#514d44');
+  }
+  smoothPath();
   g.fillStyle = grad;
   g.fill();
-  g.strokeStyle = 'rgba(10,12,16,0.6)';
-  g.lineWidth = 1.6;
+  g.strokeStyle = 'rgba(24,22,16,0.45)';
+  g.lineWidth = 1.2;
   g.stroke();
   g.save();
-  path();
+  smoothPath();
   g.clip();
-  // 面取りとヒビ
-  for (let i = 0; i < 2; i++) {
-    const fi = Math.floor(r(n));
-    g.beginPath();
-    g.moveTo(x + r(-3, 3), y + r(-3, 3));
-    g.lineTo(pts[fi][0], pts[fi][1]);
-    g.lineTo(pts[(fi + 1) % n][0], pts[(fi + 1) % n][1]);
-    g.closePath();
-    g.fillStyle = i === 0 ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.22)';
-    g.fill();
-  }
-  for (let i = 0; i < 3; i++) {
-    let cx2 = x + r(-0.5, 0.5) * rad, cy2 = y + r(-0.5, 0.5) * rad, ca = r(TAU);
-    g.strokeStyle = `rgba(12,12,16,${r(0.16, 0.3).toFixed(2)})`;
-    g.lineWidth = r(0.6, 1);
-    g.beginPath();
-    g.moveTo(cx2, cy2);
-    for (let s2 = 0; s2 < 3; s2++) {
-      ca += r(-0.8, 0.8);
-      cx2 += Math.cos(ca) * rad * 0.28;
-      cy2 += Math.sin(ca) * rad * 0.28;
-      g.lineTo(cx2, cy2);
-    }
-    g.stroke();
-  }
-  // 岩肌の粒
-  for (let i = 0; i < rad * 6; i++) {
-    g.fillStyle = `rgba(${r() < 0.5 ? '210,214,218' : '30,32,38'},${r(0.08, 0.2).toFixed(2)})`;
-    g.fillRect(x + r(-1, 1) * rad * ex, y + r(-1, 1) * rad, r(0.6, 1.3), r(0.6, 1.3));
-  }
-  // 裾から苔がせり上がる(生きたパティナ。下半分を中心に)
-  for (let i = 0; i < 8; i++) {
-    const ma = r(Math.PI * 0.15, Math.PI * 0.85);
-    const mx = x + Math.cos(ma) * rad * ex * r(0.55, 0.95);
-    const my = y + Math.sin(ma) * rad * r(0.55, 0.95);
-    const mr2 = rad * r(0.16, 0.34);
+  // 広い面のやわらかなハイライトと、下面の陰
+  const hi = g.createRadialGradient(x - rad * 0.35 * ex, y - rad * 0.4, 2,
+                                    x - rad * 0.2 * ex, y - rad * 0.2, rad * 1.1);
+  hi.addColorStop(0, 'rgba(235,230,215,0.22)');
+  hi.addColorStop(1, 'rgba(235,230,215,0)');
+  g.fillStyle = hi;
+  g.fillRect(x - rad * 2, y - rad * 2, rad * 4, rad * 4);
+  const lo = g.createRadialGradient(x + rad * 0.45 * ex, y + rad * 0.5, 2,
+                                    x + rad * 0.3 * ex, y + rad * 0.3, rad * 1.15);
+  lo.addColorStop(0, 'rgba(28,24,18,0.3)');
+  lo.addColorStop(1, 'rgba(28,24,18,0)');
+  g.fillStyle = lo;
+  g.fillRect(x - rad * 2, y - rad * 2, rad * 4, rad * 4);
+  // 風化の染み(輪郭をぼかした濃淡のむら)
+  for (let i = 0; i < 9; i++) {
+    const mx = x + r(-0.7, 0.7) * rad * ex;
+    const my = y + r(-0.7, 0.7) * rad * squash;
+    const mr2 = rad * r(0.2, 0.5);
+    const dark = r() < 0.55;
     const grd = g.createRadialGradient(mx, my, 1, mx, my, mr2);
-    grd.addColorStop(0, `rgba(92,118,60,${r(0.45, 0.7).toFixed(2)})`);
-    grd.addColorStop(1, 'rgba(92,118,60,0)');
+    grd.addColorStop(0, dark ? `rgba(52,46,36,${r(0.08, 0.16).toFixed(2)})`
+                             : `rgba(200,192,175,${r(0.07, 0.13).toFixed(2)})`);
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = grd;
     g.beginPath();
     g.arc(mx, my, mr2, 0, TAU);
     g.fill();
   }
+  // 地衣類(淡い灰緑の斑点。風化した岩の定番)
+  for (let i = 0; i < 6; i++) {
+    const mx = x + r(-0.65, 0.65) * rad * ex;
+    const my = y + r(-0.65, 0.65) * rad * squash;
+    const mr2 = rad * r(0.07, 0.2);
+    const grd = g.createRadialGradient(mx, my, 0.5, mx, my, mr2);
+    grd.addColorStop(0, `rgba(158,164,138,${r(0.16, 0.3).toFixed(2)})`);
+    grd.addColorStop(1, 'rgba(158,164,138,0)');
+    g.fillStyle = grd;
+    g.beginPath();
+    g.arc(mx, my, mr2, 0, TAU);
+    g.fill();
+  }
+  // 曲がったヒビ(1〜2本だけ、細く)
+  for (let i = 0; i < 1 + Math.floor(r(2)); i++) {
+    const sx = x + r(-0.6, 0.6) * rad * ex;
+    const sy = y + r(-0.6, 0.2) * rad * squash;
+    const ca = r(TAU);
+    const len2 = rad * r(0.5, 0.9);
+    g.strokeStyle = `rgba(20,18,12,${r(0.2, 0.32).toFixed(2)})`;
+    g.lineWidth = r(0.6, 0.9);
+    g.beginPath();
+    g.moveTo(sx, sy);
+    g.quadraticCurveTo(sx + Math.cos(ca) * len2 * 0.5 + r(-6, 6),
+                       sy + Math.sin(ca) * len2 * 0.5 + r(2, 8),
+                       sx + Math.cos(ca) * len2, sy + Math.sin(ca) * len2 + r(2, 7));
+    g.stroke();
+  }
+  // 岩肌の細かい粒・くぼみ
+  for (let i = 0; i < rad * 5; i++) {
+    g.fillStyle = `rgba(${r() < 0.5 ? '215,208,192' : '36,32,24'},${r(0.06, 0.16).toFixed(2)})`;
+    g.fillRect(x + r(-1, 1) * rad * ex, y + r(-1, 1) * rad * squash, r(0.6, 1.2), r(0.6, 1.2));
+  }
   g.restore();
-  // 左上のリムライト
-  g.lineWidth = 1.2;
-  g.strokeStyle = 'rgba(255,252,240,0.35)';
+  // 左上のなめらかなリムライト(輪郭に沿った弧)
+  g.strokeStyle = 'rgba(250,245,230,0.28)';
+  g.lineWidth = 1.4;
+  g.lineCap = 'round';
+  g.beginPath();
+  let first = true;
   for (let i = 0; i < n; i++) {
-    const p1 = pts[i], p2 = pts[(i + 1) % n];
-    if ((p1[0] + p2[0]) / 2 - x + (p1[1] + p2[1]) / 2 - y < -rad * 0.35) {
-      g.beginPath();
-      g.moveTo(p1[0], p1[1]);
-      g.lineTo(p2[0], p2[1]);
-      g.stroke();
+    const a = (i / n) * TAU;
+    if (a > Math.PI * 0.9 && a < Math.PI * 1.55) {
+      const [bx2, by2] = pts[i];
+      const inx = bx2 + (x - bx2) * 0.04, iny = by2 + (y - by2) * 0.04;
+      if (first) { g.moveTo(inx, iny); first = false; }
+      else g.lineTo(inx, iny);
     }
   }
+  g.stroke();
+  g.lineCap = 'butt';
+  return pts;
 }
 
 // 苔庭と池の静的な絵をオフスクリーンに焼き込む(重い描画はここに集約)
@@ -2453,156 +2491,173 @@ function buildDecoLayer() {
   g.setTransform(RES, 0, 0, RES, 0, 0);
   decoShapes = {};
 
-  // ---- 苔庭(左上・画面の約3割) ----
+  // ---- 岩の庭(左上・画面の約3割。土の地面に自然石の岩組+草の縁取り) ----
   if (gardenStones.length) {
     const L = DECO_LAYOUT.moss;
     const seed = gardenStones[0].seed;
     const r = seededRnd(seed + 7);
     const pts = decoOutline(L, seed, 30, 1.8);   // 縁は大きめに揺らして有機的に
     decoShapes.moss = pts;
-    // 土の際(苔の外周のくぼみ)
+    // 土の際(外周のくぼみ)
     g.save();
     tracePath(g, pts);
-    g.strokeStyle = 'rgba(30,24,14,0.5)';
+    g.strokeStyle = 'rgba(26,20,12,0.5)';
     g.lineWidth = 5;
     g.stroke();
-    // 苔のベース(左上の光を受けた深緑)
+    // 踏み固められた土の地面
     const base = g.createLinearGradient(L.cx * W - L.rx * W, L.cy * H - L.ry * H,
                                         L.cx * W + L.rx * W, L.cy * H + L.ry * H);
-    base.addColorStop(0, '#5d7a42');
-    base.addColorStop(0.5, '#48633a');
-    base.addColorStop(1, '#374e2e');
+    base.addColorStop(0, '#6b5740');
+    base.addColorStop(0.5, '#594835');
+    base.addColorStop(1, '#453724');
     g.fillStyle = base;
     g.fill();
     g.clip();
     const area = L.rx * W * L.ry * H;
     const px = (f = 1) => L.cx * W + r(-f, f) * L.rx * W;
     const py = (f = 1) => L.cy * H + r(-f, f) * L.ry * H;
-    // 地形の起伏(大きなうねり。光を受ける斜面と翳る窪み)
-    for (let i = 0; i < area / 6500; i++) {
-      const mx = px(), my = py();
-      const mr2 = r(45, 95);
-      const light = r() < 0.5;
-      const grd = g.createRadialGradient(mx, my, 4, mx, my, mr2);
-      grd.addColorStop(0, light ? 'rgba(150,172,92,0.16)' : 'rgba(26,38,22,0.2)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = grd;
-      g.beginPath();
-      g.ellipse(mx, my, mr2 * r(1, 1.6), mr2, r(TAU), 0, TAU);
-      g.fill();
-    }
-    // 苔の種類のタペストリー(明るい黄緑・深い青緑・乾いたオリーブの区画)
-    for (let i = 0; i < area / 2600; i++) {
-      const mx = px(), my = py();
-      const mr2 = r(20, 46);
-      const kind = r();
-      const hue = kind < 0.4 ? '138,164,76' : kind < 0.75 ? '52,84,58' : '108,110,62';
-      const grd = g.createRadialGradient(mx, my, 2, mx, my, mr2);
-      grd.addColorStop(0, `rgba(${hue},${r(0.14, 0.26).toFixed(2)})`);
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = grd;
-      g.beginPath();
-      g.arc(mx, my, mr2, 0, TAU);
-      g.fill();
-    }
-    // こんもりしたクッション(塊で生える。すき間は深い影=AO)
-    for (let c = 0; c < area / 2400; c++) {
-      const cx2 = px(0.95), cy2 = py(0.95);
-      const nCushion = 5 + Math.floor(r(5));
-      for (let i = 0; i < nCushion; i++) {
-        const mx = cx2 + r(-16, 16), my = cy2 + r(-13, 13);
-        const mr2 = r(4.5, 12);
-        // クッションのすき間に落ちる影(先に描く)
+    // 草の房: 細い葉が扇状に伸びる(岩のすき間の縁取り用)
+    const tuft = (tx, ty, sc) => {
+      g.lineCap = 'round';
+      const nb = 5 + Math.floor(r(4));
+      for (let b = 0; b < nb; b++) {
+        const ba = -Math.PI / 2 + r(-1.0, 1.0);
+        const bl = r(3.5, 7.5) * sc;
+        g.strokeStyle = ['#57813c', '#6b9448', '#49702f'][Math.floor(r(3))];
+        g.lineWidth = r(0.7, 1.1);
         g.beginPath();
-        g.ellipse(mx + mr2 * 0.22, my + mr2 * 0.3, mr2 * 1.05, mr2 * 0.9, 0, 0, TAU);
-        g.fillStyle = `rgba(18,28,16,${r(0.25, 0.45).toFixed(2)})`;
-        g.fill();
-        // マウンド(左上が光る)
-        const grd = g.createRadialGradient(mx - mr2 * 0.4, my - mr2 * 0.45, 1, mx, my, mr2);
-        grd.addColorStop(0, `rgba(152,178,96,${r(0.5, 0.7).toFixed(2)})`);
-        grd.addColorStop(0.55, `rgba(96,124,64,${r(0.4, 0.55).toFixed(2)})`);
-        grd.addColorStop(1, 'rgba(60,84,46,0)');
-        g.fillStyle = grd;
-        g.beginPath();
-        g.arc(mx, my, mr2, 0, TAU);
-        g.fill();
+        g.moveTo(tx, ty);
+        g.quadraticCurveTo(tx + Math.cos(ba) * bl * 0.5, ty + Math.sin(ba) * bl * 0.6,
+                           tx + Math.cos(ba) * bl + r(-1, 1), ty + Math.sin(ba) * bl);
+        g.stroke();
       }
-    }
-    // ベルベットの毛足(ごく短い起毛ストローク+きらめく粒)
-    g.lineCap = 'round';
-    for (let i = 0; i < area / 13; i++) {
+      g.lineCap = 'butt';
+    };
+    // 土の色むら(乾いたところ・湿ったところ)
+    for (let i = 0; i < area / 1600; i++) {
       const mx = px(), my = py();
-      const la = r(TAU);
-      const ll = r(0.8, 2);
-      g.strokeStyle = r() < 0.5
-        ? `rgba(164,190,104,${r(0.1, 0.26).toFixed(2)})`
-        : `rgba(22,34,18,${r(0.12, 0.28).toFixed(2)})`;
-      g.lineWidth = r(0.5, 0.9);
+      const mr2 = r(12, 34);
+      const light = r() < 0.5;
+      const grd = g.createRadialGradient(mx, my, 2, mx, my, mr2);
+      grd.addColorStop(0, light ? `rgba(133,110,78,${r(0.12, 0.22).toFixed(2)})`
+                                : `rgba(46,35,22,${r(0.14, 0.24).toFixed(2)})`);
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grd;
       g.beginPath();
-      g.moveTo(mx, my);
-      g.lineTo(mx + Math.cos(la) * ll, my + Math.sin(la) * ll);
+      g.ellipse(mx, my, mr2 * r(1, 1.5), mr2, r(TAU), 0, TAU);
+      g.fill();
+    }
+    // 明るい砂利・チップの敷きパッチ(写真の白っぽいエリア)
+    const gpx = px(0.45), gpy = py(0.45);
+    const gpr = Math.min(L.rx * W, L.ry * H) * r(0.5, 0.7);
+    const halo = g.createRadialGradient(gpx, gpy, gpr * 0.2, gpx, gpy, gpr);
+    halo.addColorStop(0, 'rgba(150,135,105,0.55)');
+    halo.addColorStop(0.8, 'rgba(150,135,105,0.35)');
+    halo.addColorStop(1, 'rgba(150,135,105,0)');
+    g.fillStyle = halo;
+    g.beginPath();
+    g.arc(gpx, gpy, gpr, 0, TAU);
+    g.fill();
+    for (let i = 0; i < (gpr * gpr) / 5; i++) {
+      const ca = r(TAU), cd = Math.sqrt(r()) * gpr * 0.96;
+      const cx2 = gpx + Math.cos(ca) * cd, cy2 = gpy + Math.sin(ca) * cd * 0.9;
+      const shade = r();
+      g.save();
+      g.translate(cx2, cy2);
+      g.rotate(r(TAU));
+      g.fillStyle = shade < 0.35 ? `rgba(196,182,152,${r(0.4, 0.7).toFixed(2)})`
+                  : shade < 0.7 ? `rgba(155,140,110,${r(0.4, 0.6).toFixed(2)})`
+                                : `rgba(108,94,70,${r(0.35, 0.55).toFixed(2)})`;
+      g.fillRect(-r(0.8, 1.8), -r(0.5, 1), r(1.6, 3.6), r(1, 2));
+      g.restore();
+    }
+    // 落ち葉(全体に薄く、砂利パッチのまわりに濃く)
+    for (let i = 0; i < area / 300; i++) {
+      const nearPatch = r() < 0.4;
+      const la = r(TAU);
+      const lx = nearPatch ? gpx + Math.cos(la) * gpr * r(0.7, 1.5) : px();
+      const ly = nearPatch ? gpy + Math.sin(la) * gpr * r(0.7, 1.5) : py();
+      const shade = r();
+      g.save();
+      g.translate(lx, ly);
+      g.rotate(r(TAU));
+      g.fillStyle = shade < 0.4 ? `rgba(181,154,110,${r(0.35, 0.6).toFixed(2)})`
+                  : shade < 0.75 ? `rgba(154,127,85,${r(0.3, 0.55).toFixed(2)})`
+                                 : `rgba(122,101,68,${r(0.3, 0.5).toFixed(2)})`;
+      g.beginPath();
+      g.ellipse(0, 0, r(1.6, 3.2), r(0.8, 1.5), 0, 0, TAU);
+      g.fill();
+      g.restore();
+    }
+    // 小枝・木の根(細い曲線)
+    for (let i = 0; i < 4; i++) {
+      let cx2 = px(0.8), cy2 = py(0.8), ca = r(TAU);
+      g.strokeStyle = `rgba(58,44,28,${r(0.3, 0.45).toFixed(2)})`;
+      g.lineWidth = r(0.8, 1.6);
+      g.beginPath();
+      g.moveTo(cx2, cy2);
+      for (let s2 = 0; s2 < 3; s2++) {
+        const nx = cx2 + Math.cos(ca) * r(10, 24);
+        const ny = cy2 + Math.sin(ca) * r(8, 18);
+        g.quadraticCurveTo(cx2 + Math.cos(ca + 0.5) * 8, cy2 + Math.sin(ca + 0.5) * 8, nx, ny);
+        cx2 = nx; cy2 = ny;
+        ca += r(-0.5, 0.5);
+      }
       g.stroke();
     }
-    g.lineCap = 'butt';
-    for (let i = 0; i < area / 260; i++) {
-      g.fillStyle = `rgba(196,216,128,${r(0.14, 0.3).toFixed(2)})`;
-      g.fillRect(px(), py(), r(0.7, 1.2), r(0.7, 1.2));
+    // 岩組: 大岩+平石スラブの一群が斜めの帯に流れる(写真の岩場の構図)
+    const bx = L.cx * W + r(-0.1, 0.15) * L.rx * W;
+    const by = L.cy * H + r(-0.05, 0.15) * L.ry * H;
+    const axis = r(TAU);
+    const rocks = [
+      { x: bx, y: by, rad: r(26, 32), flat: false },
+      { x: bx + Math.cos(axis) * r(0.4, 0.55) * L.rx * W,
+        y: by + Math.sin(axis) * r(0.35, 0.5) * L.ry * H, rad: r(24, 32), flat: true },
+      { x: bx - Math.cos(axis) * r(0.35, 0.5) * L.rx * W,
+        y: by - Math.sin(axis) * r(0.3, 0.45) * L.ry * H, rad: r(15, 21), flat: false },
+      { x: px(0.62), y: py(0.66), rad: r(17, 24), flat: true },
+      { x: px(0.62), y: py(0.66), rad: r(10, 14), flat: false },
+    ];
+    for (let i = 0; i < 4; i++) rocks.push({ x: px(0.85), y: py(0.85), rad: r(5, 9), flat: r() < 0.4 });
+    rocks.sort((a, b) => a.y - b.y);
+    for (const rk of rocks) {
+      const outline = drawBoulder(g, rk.x, rk.y, rk.rad, r, rk.flat);
+      // 岩のすき間を縁取る草(写真のように岩の際に沿って)
+      for (const [ox, oy] of outline) {
+        if (r() < 0.5) continue;
+        if (oy < rk.y - rk.rad * 0.25) continue;
+        tuft(ox + r(-2, 2), oy + r(0, 3), r(0.8, 1.3));
+      }
     }
+    // 地面のところどころに草の房
+    for (let i = 0; i < area / 2400; i++) tuft(px(0.92), py(0.92), r(0.7, 1.2));
     g.restore();
-    // 縁のほつれ(小さな苔のかたまりが砂利側へこぼれる)
+    // 縁のほつれ(土と落ち葉が砂利側へこぼれて境界がなじむ)
     for (let i = 0; i < pts.length; i++) {
-      if (r() < 0.4) continue;
+      if (r() < 0.35) continue;
       const [ex, ey] = pts[i];
       const ox = ex - L.cx * W, oy = ey - L.cy * H;
       const om = Math.hypot(ox, oy) || 1;
       for (let k = 0; k < 1 + Math.floor(r(2)); k++) {
-        const fx2 = ex + (ox / om) * r(3, 13) + r(-6, 6);
-        const fy2 = ey + (oy / om) * r(3, 13) + r(-6, 6);
-        const fr2 = r(2.5, 6);
+        const fx2 = ex + (ox / om) * r(2, 12) + r(-6, 6);
+        const fy2 = ey + (oy / om) * r(2, 12) + r(-6, 6);
+        const fr2 = r(3, 7);
         g.beginPath();
-        g.ellipse(fx2 + 0.8, fy2 + 1, fr2, fr2 * 0.85, 0, 0, TAU);
-        g.fillStyle = 'rgba(18,26,14,0.35)';
+        g.ellipse(fx2, fy2, fr2, fr2 * 0.8, r(TAU), 0, TAU);
+        g.fillStyle = `rgba(84,66,44,${r(0.3, 0.5).toFixed(2)})`;
         g.fill();
-        const grd = g.createRadialGradient(fx2 - 1, fy2 - 1, 0.5, fx2, fy2, fr2);
-        grd.addColorStop(0, 'rgba(128,154,82,0.8)');
-        grd.addColorStop(1, 'rgba(70,96,52,0.5)');
-        g.fillStyle = grd;
-        g.beginPath();
-        g.ellipse(fx2, fy2, fr2, fr2 * 0.85, 0, 0, TAU);
-        g.fill();
+        if (r() < 0.5) {
+          g.save();
+          g.translate(fx2 + r(-4, 4), fy2 + r(-4, 4));
+          g.rotate(r(TAU));
+          g.fillStyle = `rgba(160,133,92,${r(0.35, 0.55).toFixed(2)})`;
+          g.beginPath();
+          g.ellipse(0, 0, r(1.6, 2.8), r(0.8, 1.4), 0, 0, TAU);
+          g.fill();
+          g.restore();
+        }
       }
     }
-    // 景石: 大岩を主とした三尊風の石組+散らしの中石
-    const bx = L.cx * W + r(-0.2, 0.15) * L.rx * W;
-    const by = L.cy * H + r(-0.15, 0.2) * L.ry * H;
-    drawBoulder(g, bx, by, r(30, 38), r);
-    drawBoulder(g, bx + r(0.3, 0.45) * L.rx * W, by + r(0.15, 0.35) * L.ry * H, r(17, 23), r);
-    drawBoulder(g, bx - r(0.28, 0.42) * L.rx * W, by + r(-0.1, 0.25) * L.ry * H, r(13, 18), r);
-    drawBoulder(g, px(0.6), L.cy * H - r(0.5, 0.75) * L.ry * H, r(11, 15), r);
-    // 小石を散らす
-    for (let i = 0; i < 5; i++) {
-      const sx = px(0.8), sy = py(0.8);
-      const sc = r(0.35, 0.6);
-      g.save();
-      g.translate(sx, sy);
-      g.beginPath();
-      g.ellipse(1.2, 1.8, 16 * sc, 13 * sc, 0, 0, TAU);
-      g.fillStyle = 'rgba(18,24,14,0.45)';
-      g.fill();
-      g.rotate(r(TAU));
-      g.scale(sc, sc * r(0.75, 0.95));
-      g.drawImage(stoneSprites[Math.floor(r(14))], -32, -32);
-      g.restore();
-    }
-    // 縁の内側に淡いハイライト(左上)
-    g.save();
-    tracePath(g, pts);
-    g.clip();
-    tracePath(g, pts);
-    g.strokeStyle = 'rgba(190,210,140,0.15)';
-    g.lineWidth = 7;
-    g.stroke();
-    g.restore();
   }
 
   // ---- 池(右下・画面の約5割) ----
