@@ -2533,77 +2533,69 @@ function buildDecoLayer() {
       }
       g.lineCap = 'butt';
     };
-    // 土の色むら(乾いたところ・湿ったところ)
-    for (let i = 0; i < area / 1600; i++) {
+    // 目地の土の色むら(石のすき間からのぞく程度)
+    for (let i = 0; i < area / 3000; i++) {
       const mx = px(), my = py();
-      const mr2 = r(12, 34);
-      const light = r() < 0.5;
+      const mr2 = r(14, 32);
       const grd = g.createRadialGradient(mx, my, 2, mx, my, mr2);
-      grd.addColorStop(0, light ? `rgba(133,110,78,${r(0.12, 0.22).toFixed(2)})`
-                                : `rgba(46,35,22,${r(0.14, 0.24).toFixed(2)})`);
+      grd.addColorStop(0, `rgba(46,35,22,${r(0.14, 0.24).toFixed(2)})`);
       grd.addColorStop(1, 'rgba(0,0,0,0)');
       g.fillStyle = grd;
       g.beginPath();
-      g.ellipse(mx, my, mr2 * r(1, 1.5), mr2, r(TAU), 0, TAU);
+      g.arc(mx, my, mr2, 0, TAU);
       g.fill();
     }
-    // 明るい砂利・チップの敷きパッチ(写真の白っぽいエリア)
-    const gpx = px(0.45), gpy = py(0.45);
-    const gpr = Math.min(L.rx * W, L.ry * H) * r(0.5, 0.7);
-    const halo = g.createRadialGradient(gpx, gpy, gpr * 0.2, gpx, gpy, gpr);
-    halo.addColorStop(0, 'rgba(150,135,105,0.55)');
-    halo.addColorStop(0.8, 'rgba(150,135,105,0.35)');
-    halo.addColorStop(1, 'rgba(150,135,105,0)');
-    g.fillStyle = halo;
-    g.beginPath();
-    g.arc(gpx, gpy, gpr, 0, TAU);
-    g.fill();
-    for (let i = 0; i < (gpr * gpr) / 5; i++) {
-      const ca = r(TAU), cd = Math.sqrt(r()) * gpr * 0.96;
-      const cx2 = gpx + Math.cos(ca) * cd, cy2 = gpy + Math.sin(ca) * cd * 0.9;
-      const shade = r();
+    // ゴロタ石敷き: 日本庭園の玉石を目地を詰めて敷き詰める
+    const cobble = (cxp, cyp, cr) => {
+      const rot = r(TAU);
+      const sq = r(0.72, 0.95);
+      const pal = ['#948c7e', '#a09786', '#867e6f', '#78705f', '#a8a093', '#8d8578'];
       g.save();
-      g.translate(cx2, cy2);
-      g.rotate(r(TAU));
-      g.fillStyle = shade < 0.35 ? `rgba(196,182,152,${r(0.4, 0.7).toFixed(2)})`
-                  : shade < 0.7 ? `rgba(155,140,110,${r(0.4, 0.6).toFixed(2)})`
-                                : `rgba(108,94,70,${r(0.35, 0.55).toFixed(2)})`;
-      g.fillRect(-r(0.8, 1.8), -r(0.5, 1), r(1.6, 3.6), r(1, 2));
-      g.restore();
-    }
-    // 落ち葉(全体に薄く、砂利パッチのまわりに濃く)
-    for (let i = 0; i < area / 300; i++) {
-      const nearPatch = r() < 0.4;
-      const la = r(TAU);
-      const lx = nearPatch ? gpx + Math.cos(la) * gpr * r(0.7, 1.5) : px();
-      const ly = nearPatch ? gpy + Math.sin(la) * gpr * r(0.7, 1.5) : py();
-      const shade = r();
-      g.save();
-      g.translate(lx, ly);
-      g.rotate(r(TAU));
-      g.fillStyle = shade < 0.4 ? `rgba(181,154,110,${r(0.35, 0.6).toFixed(2)})`
-                  : shade < 0.75 ? `rgba(154,127,85,${r(0.3, 0.55).toFixed(2)})`
-                                 : `rgba(122,101,68,${r(0.3, 0.5).toFixed(2)})`;
+      g.translate(cxp, cyp);
+      g.rotate(rot);
       g.beginPath();
-      g.ellipse(0, 0, r(1.6, 3.2), r(0.8, 1.5), 0, 0, TAU);
+      g.ellipse(0, 0, cr, cr * sq, 0, 0, TAU);
+      g.fillStyle = pal[Math.floor(r(pal.length))];
       g.fill();
-      g.restore();
-    }
-    // 小枝・木の根(細い曲線)
-    for (let i = 0; i < 4; i++) {
-      let cx2 = px(0.8), cy2 = py(0.8), ca = r(TAU);
-      g.strokeStyle = `rgba(58,44,28,${r(0.3, 0.45).toFixed(2)})`;
-      g.lineWidth = r(0.8, 1.6);
-      g.beginPath();
-      g.moveTo(cx2, cy2);
-      for (let s2 = 0; s2 < 3; s2++) {
-        const nx = cx2 + Math.cos(ca) * r(10, 24);
-        const ny = cy2 + Math.sin(ca) * r(8, 18);
-        g.quadraticCurveTo(cx2 + Math.cos(ca + 0.5) * 8, cy2 + Math.sin(ca + 0.5) * 8, nx, ny);
-        cx2 = nx; cy2 = ny;
-        ca += r(-0.5, 0.5);
-      }
+      g.strokeStyle = 'rgba(28,22,14,0.5)';
+      g.lineWidth = 0.8;
       g.stroke();
+      // 左上のやわらかな光
+      g.beginPath();
+      g.ellipse(-cr * 0.26, -cr * sq * 0.3, cr * 0.6, cr * sq * 0.52, 0, 0, TAU);
+      g.fillStyle = 'rgba(255,250,238,0.17)';
+      g.fill();
+      // 表面の粒と、ときどき苔の色
+      for (let s2 = 0; s2 < 4; s2++) {
+        g.fillStyle = `rgba(${r() < 0.5 ? '225,218,200' : '40,34,24'},${r(0.08, 0.18).toFixed(2)})`;
+        g.fillRect(r(-0.6, 0.6) * cr, r(-0.6, 0.6) * cr * sq, r(0.5, 1), r(0.5, 1));
+      }
+      if (r() < 0.08) {
+        g.fillStyle = `rgba(96,118,60,${r(0.2, 0.35).toFixed(2)})`;
+        g.beginPath();
+        g.ellipse(r(-0.3, 0.3) * cr, r(-0.3, 0.3) * cr * sq, cr * 0.5, cr * sq * 0.4, r(TAU), 0, TAU);
+        g.fill();
+      }
+      g.restore();
+    };
+    const cell = 11;
+    for (let gy = L.cy * H - L.ry * H * 1.15; gy < L.cy * H + L.ry * H * 1.15; gy += cell) {
+      for (let gx = L.cx * W - L.rx * W * 1.15; gx < L.cx * W + L.rx * W * 1.15; gx += cell) {
+        cobble(gx + r(-2.5, 2.5), gy + r(-2.5, 2.5), r(4.8, 7.2));
+      }
+    }
+    // 落ち葉をところどころに
+    for (let i = 0; i < area / 1100; i++) {
+      const shade = r();
+      g.save();
+      g.translate(px(), py());
+      g.rotate(r(TAU));
+      g.fillStyle = shade < 0.5 ? `rgba(181,154,110,${r(0.3, 0.5).toFixed(2)})`
+                                : `rgba(132,108,72,${r(0.3, 0.45).toFixed(2)})`;
+      g.beginPath();
+      g.ellipse(0, 0, r(1.6, 3), r(0.8, 1.4), 0, 0, TAU);
+      g.fill();
+      g.restore();
     }
     // 岩組: 大岩+平石スラブの一群が斜めの帯に流れる(写真の岩場の構図)
     const bx = L.cx * W + r(-0.1, 0.15) * L.rx * W;
@@ -2632,30 +2624,15 @@ function buildDecoLayer() {
     // 地面のところどころに草の房
     for (let i = 0; i < area / 2400; i++) tuft(px(0.92), py(0.92), r(0.7, 1.2));
     g.restore();
-    // 縁のほつれ(土と落ち葉が砂利側へこぼれて境界がなじむ)
+    // 縁のほつれ(小さめの玉石が砂利側へこぼれて境界がなじむ)
     for (let i = 0; i < pts.length; i++) {
-      if (r() < 0.35) continue;
+      if (r() < 0.45) continue;
       const [ex, ey] = pts[i];
       const ox = ex - L.cx * W, oy = ey - L.cy * H;
       const om = Math.hypot(ox, oy) || 1;
       for (let k = 0; k < 1 + Math.floor(r(2)); k++) {
-        const fx2 = ex + (ox / om) * r(2, 12) + r(-6, 6);
-        const fy2 = ey + (oy / om) * r(2, 12) + r(-6, 6);
-        const fr2 = r(3, 7);
-        g.beginPath();
-        g.ellipse(fx2, fy2, fr2, fr2 * 0.8, r(TAU), 0, TAU);
-        g.fillStyle = `rgba(84,66,44,${r(0.3, 0.5).toFixed(2)})`;
-        g.fill();
-        if (r() < 0.5) {
-          g.save();
-          g.translate(fx2 + r(-4, 4), fy2 + r(-4, 4));
-          g.rotate(r(TAU));
-          g.fillStyle = `rgba(160,133,92,${r(0.35, 0.55).toFixed(2)})`;
-          g.beginPath();
-          g.ellipse(0, 0, r(1.6, 2.8), r(0.8, 1.4), 0, 0, TAU);
-          g.fill();
-          g.restore();
-        }
+        cobble(ex + (ox / om) * r(2, 11) + r(-5, 5),
+               ey + (oy / om) * r(2, 11) + r(-5, 5), r(3, 5));
       }
     }
   }
