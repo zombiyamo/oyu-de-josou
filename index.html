@@ -345,12 +345,14 @@ const LOCALES = {
     shopBuy: (c) => `${c}ptで買う`,
     shopMax: 'これ以上置けない',
     shopMaxLv: '最大レベル',
-    shopNames: { kettle: '自動やかん', sprinkler: 'ししおどし', sweeper: 'つむじ風', goat: 'からくりヤギ' },
+    shopNames: { kettle: '自動やかん', sprinkler: 'ししおどし', sweeper: 'つむじ風', goat: 'からくりヤギ', stone: '苔石', pond: '池' },
     shopDescs: {
       kettle: '庭に置くと、近くの草にときどきお湯をかけてくれる働き者',
       sprinkler: '竹筒にお湯がたまると、カコンッと傾いてまわりの草に熱湯をまく。音も風情もある働き者',
       sweeper: '定期的に風が吹き抜けて、枯れ草をぜんぶまとめて片付ける(買い切り)。買い足すと間隔が短くなる: 10秒→5秒→3秒→2秒',
-      goat: 'ぜんまい仕掛けの木のヤギ。庭を歩き回って、枯れ草も伸びた草ももぐもぐ回収してくれる(回収した分はポイントになる)'
+      goat: 'ぜんまい仕掛けのヤギ。庭を歩き回って、枯れ草も伸びた草ももぐもぐ回収してくれる(回収した分はポイントになる)',
+      stone: 'こけむした立派な庭石。置いたまわりには草が生えなくなる。少しずつ庭を仕上げていこう',
+      pond: '錦鯉と蓮の浮かぶいい感じの池。まわりには草が生えない。庭の完成が見えてくる'
     },
     shopBought: (name) => `${name}を庭に置きました!`,
     bookTitle: '📖 雑草コレクション',
@@ -433,12 +435,14 @@ const LOCALES = {
     shopBuy: (c) => `Buy for ${c}pt`,
     shopMax: 'No room for more',
     shopMaxLv: 'Max level',
-    shopNames: { kettle: 'Auto Kettle', sprinkler: 'Shishi-odoshi', sweeper: 'Whirlwind', goat: 'Karakuri Goat' },
+    shopNames: { kettle: 'Auto Kettle', sprinkler: 'Shishi-odoshi', sweeper: 'Whirlwind', goat: 'Karakuri Goat', stone: 'Moss Stone', pond: 'Pond' },
     shopDescs: {
       kettle: 'Sits in the garden and pours hot water on nearby weeds now and then',
       sprinkler: 'A bamboo fountain that fills with hot water, then tips with a "konk" and splashes the weeds around it',
       sweeper: 'A gust sweeps through periodically, clearing every withered weed at once (one-time upgrade). Buy again to shorten the interval: 10s→5s→3s→2s',
-      goat: 'A wind-up wooden goat. Wanders the garden munching withered and growing weeds alike (its cleanups earn you points)'
+      goat: 'A wind-up goat. Wanders the garden munching withered and growing weeds alike (its cleanups earn you points)',
+      stone: 'A fine mossy garden stone. Weeds no longer grow around it — finish your garden bit by bit',
+      pond: 'A lovely pond with koi and lotus. Weeds keep clear of it. Your garden nears completion'
     },
     shopBought: (name) => `A ${name} has been placed in your garden!`,
     bookTitle: '📖 Weed Collection',
@@ -521,12 +525,14 @@ const LOCALES = {
     shopBuy: (c) => `${c}pt购买`,
     shopMax: '放不下更多了',
     shopMaxLv: '已满级',
-    shopNames: { kettle: '自动水壶', sprinkler: '惊鹿(添水)', sweeper: '旋风', goat: '机关山羊' },
+    shopNames: { kettle: '自动水壶', sprinkler: '惊鹿(添水)', sweeper: '旋风', goat: '机关山羊', stone: '苔石', pond: '水池' },
     shopDescs: {
       kettle: '放在院子里,时不时给附近的杂草浇热水',
       sprinkler: '灌满热水的竹筒定期"咔嗒"一声倾倒,把热水洒向周围的杂草,还有风情十足的敲石声',
       sweeper: '定期有一阵风吹过,把所有枯草一次性清走(一次性升级)。再次购买可缩短间隔: 10秒→5秒→3秒→2秒',
-      goat: '发条驱动的木制山羊,在院子里散步,枯草和杂草都吃得干干净净(收走的也算点数)'
+      goat: '发条驱动的山羊,在院子里散步,枯草和杂草都吃得干干净净(收走的也算点数)',
+      stone: '长满青苔的庭石。周围不再长草——一点点把院子收拾完美吧',
+      pond: '有锦鲤和莲叶的雅致水池。周围不长草。庭园的完成近在眼前'
     },
     shopBought: (name) => `${name}已放进院子!`,
     bookTitle: '📖 杂草图鉴',
@@ -609,12 +615,14 @@ const LOCALES = {
     shopBuy: (c) => `${c}pt로 구매`,
     shopMax: '더 놓을 자리가 없어요',
     shopMaxLv: '최대 레벨',
-    shopNames: { kettle: '자동 주전자', sprinkler: '시시오도시', sweeper: '회오리바람', goat: '태엽 염소' },
+    shopNames: { kettle: '자동 주전자', sprinkler: '시시오도시', sweeper: '회오리바람', goat: '태엽 염소', stone: '이끼 정원석', pond: '연못' },
     shopDescs: {
       kettle: '정원에 두면 가까운 잡초에 가끔 뜨거운 물을 부어 줍니다',
       sprinkler: '대나무 통에 뜨거운 물이 차면 "콩" 소리와 함께 기울어져 주변 잡초에 물을 뿌립니다',
       sweeper: '주기적으로 바람이 불어 마른 풀을 한꺼번에 치웁니다(영구 업그레이드). 추가 구매로 간격이 짧아집니다: 10초→5초→3초→2초',
-      goat: '태엽으로 움직이는 나무 염소. 정원을 돌아다니며 마른 풀도 자란 풀도 냠냠 치워 줍니다(치운 만큼 포인트)'
+      goat: '태엽으로 움직이는 염소. 정원을 돌아다니며 마른 풀도 자란 풀도 냠냠 치워 줍니다(치운 만큼 포인트)',
+      stone: '이끼가 낀 멋진 정원석. 주변에는 풀이 나지 않습니다. 조금씩 정원을 완성해 보세요',
+      pond: '비단잉어와 연잎이 있는 근사한 연못. 주변에 풀이 나지 않습니다'
     },
     shopBought: (name) => `${name}를 정원에 두었습니다!`,
     bookTitle: '📖 잡초 도감',
@@ -1184,6 +1192,7 @@ function spawnWeed(opts = {}) {
       y = rnd(topMargin, H - margin);
     }
     let ok = x >= margin && x <= W - margin && y >= topMargin && y <= H - margin;
+    if (ok && inDecoration(x, y)) ok = false;   // 苔石・池のまわりには生えない
     if (ok) {
       // 混み合ってきたら株間の制限を段階的に緩めて、密林化を止めない
       const crowded = weeds.length >= weedTargetCount();
@@ -1199,7 +1208,8 @@ function spawnWeed(opts = {}) {
       }
       if (ok && close > closeLimit) ok = false;   // 1点に積み重なりすぎない
     }
-    if (ok || (opts.x !== undefined && attempt === 11)) {
+    // 位置指定の強制スポーン(根からの復活など)でも、飾りの範囲だけは respect する
+    if (ok || (opts.x !== undefined && attempt === 11 && !inDecoration(x, y))) {
       // 指定座標スポーン(根からの復活)は最終的に必ず画面内で成立させる
       const sx = clamp(x, margin, Math.max(margin, W - margin));
       const sy = clamp(y, topMargin, Math.max(topMargin, H - margin));
@@ -1897,11 +1907,17 @@ const SHOP_ITEMS = {
   sprinkler: { icon: '🎍', base: 300, mult: 1.5, max: 4 },    // ししおどし
   // つむじ風: Lv1は序盤に手が届く値段、上位レベルは図鑑コンプ後の長期目標
   sweeper:   { icon: '🌪️', costs: [250, 800, 2000, 4500], max: 4, isLevel: true },
-  goat:      { icon: '🐐', base: 800, mult: 1.5, max: 3 },    // からくりヤギ(木製)
+  goat:      { icon: '🐐', base: 800, mult: 1.5, max: 3 },    // からくりヤギ(ぜんまい仕掛け)
+  // ここから下はクリア後の庭づくり: 置いた範囲には草が生えなくなる
+  stone:     { icon: '🪨', base: 1000, mult: 1.4, max: 6 },   // 苔石
+  pond:      { icon: '🪷', base: 6000, mult: 1, max: 1 },     // 池
 };
+const MOSS_STONE_R = 30;   // 苔石の草よけ半径(ワールド単位)
+const POND_R = 62;         // 池の草よけ半径
 const SWEEP_INTERVALS = [10, 5, 3, 2];   // つむじ風のレベル別間隔(秒)
 let spentPoints = loadLS('oyu_spent', 0);
 const autoKettles = [], autoSprinklers = [], goats = [];
+const gardenStones = [], ponds = [];   // クリア後の庭づくり(草よけ)
 let sweeperLevel = 0;
 let sweeperTimer = 5;
 let sweepFx = null;      // 吹き抜け中の風 {x}
@@ -1910,7 +1926,20 @@ const points = () => Math.max(0, totalKilled - spentPoints);
 const ownedCount = (kind) =>
   kind === 'kettle' ? autoKettles.length :
   kind === 'sprinkler' ? autoSprinklers.length :
-  kind === 'sweeper' ? sweeperLevel : goats.length;
+  kind === 'sweeper' ? sweeperLevel :
+  kind === 'stone' ? gardenStones.length :
+  kind === 'pond' ? ponds.length : goats.length;
+
+// 庭飾りの草よけ判定: この範囲には新しい草が生えない
+function inDecoration(x, y) {
+  for (const st of gardenStones) {
+    if ((st.x - x) ** 2 + (st.y - y) ** 2 < MOSS_STONE_R * MOSS_STONE_R) return true;
+  }
+  for (const p of ponds) {
+    if ((p.x - x) ** 2 + (p.y - y) ** 2 < POND_R * POND_R) return true;
+  }
+  return false;
+}
 const itemCost = (kind) => {
   const it = SHOP_ITEMS[kind];
   const n = ownedCount(kind);
@@ -1940,11 +1969,51 @@ function autoSpot(radius) {
   return best || { x: rnd(60, Math.max(70, W - 60)), y: rnd(80, Math.max(90, H - 50)) };
 }
 
+// 庭飾り(苔石・池)の置き場所: 端・他の飾り・設置物から距離をとる
+function decoSpot(selfR) {
+  let best = null, bestD = -1;
+  for (let tries = 0; tries < 16; tries++) {
+    const m = selfR + 14;
+    const x = rnd(m, Math.max(m + 1, W - m));
+    const y = rnd(m + 34, Math.max(m + 35, H - m));
+    let nearest = 1e9;
+    for (const st of gardenStones) nearest = Math.min(nearest, Math.hypot(st.x - x, st.y - y) - MOSS_STONE_R);
+    for (const p of ponds) nearest = Math.min(nearest, Math.hypot(p.x - x, p.y - y) - POND_R);
+    for (const d of [...autoKettles, ...autoSprinklers]) nearest = Math.min(nearest, Math.hypot(d.x - x, d.y - y));
+    if (nearest > bestD) { bestD = nearest; best = { x, y }; }
+  }
+  return best;
+}
+
+// 飾りを置いた範囲の草はホロッと崩れて片付く(ポイントにもなる)。
+// 地中のドクダミの根も一緒に取り除く(飾りの中から復活しないように)
+function clearWeedsIn(x, y, r) {
+  for (const w of weeds) {
+    if (!w.removing && (w.x - x) ** 2 + (w.y - y) ** 2 < r * r) startCrumble(w);
+  }
+  for (let i = roots.length - 1; i >= 0; i--) {
+    const rt = roots[i];
+    if ((rt.x - x) ** 2 + (rt.y - y) ** 2 < r * r) roots.splice(i, 1);
+  }
+}
+
 function placeAutoItem(kind, pos) {
   if (kind === 'sweeper') {
     // 設置物ではなく買い切りのレベルアップ
     sweeperLevel = Math.min(sweeperLevel + 1, SHOP_ITEMS.sweeper.max);
     sweeperTimer = Math.min(sweeperTimer, SWEEP_INTERVALS[sweeperLevel - 1]);
+    return;
+  }
+  if (kind === 'stone') {
+    const p = pos || decoSpot(MOSS_STONE_R);
+    gardenStones.push({ x: p.x, y: p.y, seed: p.seed || irnd(1, 1e9) });
+    if (!pos) clearWeedsIn(p.x, p.y, MOSS_STONE_R);
+    return;
+  }
+  if (kind === 'pond') {
+    const p = pos || decoSpot(POND_R);
+    ponds.push({ x: p.x, y: p.y, seed: p.seed || irnd(1, 1e9) });
+    if (!pos) clearWeedsIn(p.x, p.y, POND_R + 6);
     return;
   }
   const p = pos || autoSpot(kind === 'sprinkler' ? 75 : 90);
@@ -1965,6 +2034,8 @@ function saveAutoItems() {
     kettle: autoKettles.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y) })),
     sprinkler: autoSprinklers.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y) })),
     goat: goats.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y) })),
+    stone: gardenStones.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), seed: d.seed })),
+    pond: ponds.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), seed: d.seed })),
     sweeper: sweeperLevel,
   });
   saveLS('oyu_spent', spentPoints);
@@ -1972,7 +2043,7 @@ function saveAutoItems() {
 
 { // 保存済みの設置物を復元(座標は保存時のもの。画面外はupdate側でクランプされる)
   const saved = loadLS('oyu_autoItems', {});
-  for (const kind of ['kettle', 'sprinkler', 'goat']) {
+  for (const kind of ['kettle', 'sprinkler', 'goat', 'stone', 'pond']) {
     for (const p of (saved[kind] || [])) placeAutoItem(kind, p);
   }
   sweeperLevel = Math.min(saved.sweeper || 0, SHOP_ITEMS.sweeper.max);
@@ -2127,6 +2198,16 @@ function updateAutomation(dt) {
       g2.dir += clamp(da, -dt * 3, dt * 3);
       g2.x = clamp(g2.x + Math.cos(g2.dir) * sp * dt, 20, Math.max(20, W - 20));
       g2.y = clamp(g2.y + Math.sin(g2.dir) * sp * dt, 50, Math.max(50, H - 15));
+      // 池には入らない(縁で押し返す)
+      for (const p of ponds) {
+        const pdx = g2.x - p.x, pdy = g2.y - p.y;
+        const pd = Math.hypot(pdx, pdy);
+        if (pd < POND_R + 6 && pd > 0.01) {
+          g2.x = p.x + (pdx / pd) * (POND_R + 6);
+          g2.y = p.y + (pdy / pd) * (POND_R + 6);
+          g2.wander = null;   // 行き先を選び直す
+        }
+      }
     }
   }
 }
@@ -2223,6 +2304,211 @@ function drawSprinkler(d, time) {
     ctx.moveTo(2, s2 * 2.2);
     ctx.lineTo(4.5, s2 * 5.5);
     ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// シードから決定的な乱数列を作る(苔石・池の形が毎回変わらないように)
+function seededRnd(seed) {
+  let s = seed >>> 0;
+  return (a = 1, b) => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    const v = s / 4294967296;
+    return b === undefined ? v * a : a + v * (b - a);
+  };
+}
+
+function drawGardenStone(st) {
+  if (!st._shape) {
+    // 初回に形を生成してキャッシュ(セーブされたシードから毎回同じ形になる)
+    const r = seededRnd(st.seed);
+    const n = 7 + Math.floor(r() * 3);
+    const rot = r(TAU);
+    const ex = r(0.85, 1.3);
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = rot + (i / n) * TAU + r(-0.2, 0.2);
+      const rr = 22 * r(0.72, 1.02);
+      pts.push([Math.cos(a) * rr * ex, Math.sin(a) * rr]);
+    }
+    const moss = [];
+    for (let i = 0; i < 5; i++) {
+      moss.push([r(-12, 12), r(-10, 10), r(4, 9), r(2.5, 6), r(TAU), r(0.5, 0.85)]);
+    }
+    st._shape = { pts, moss, ex };
+  }
+  const { pts, moss } = st._shape;
+  ctx.save();
+  ctx.translate(st.x, st.y);
+  // 接地影
+  ctx.beginPath();
+  ctx.ellipse(2.5, 3.5, 26, 20, 0, 0, TAU);
+  ctx.fillStyle = 'rgba(14,10,5,0.35)';
+  ctx.fill();
+  // 岩体(左上からの光)
+  const path = () => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+  };
+  const g = ctx.createLinearGradient(-20, -20, 20, 20);
+  g.addColorStop(0, '#8b8d90');
+  g.addColorStop(0.55, '#63666b');
+  g.addColorStop(1, '#43464b');
+  path();
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(12,14,18,0.55)';
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+  // 苔(ふた色の柔らかい斑)
+  ctx.save();
+  path();
+  ctx.clip();
+  for (const [mx, my, ma, mb, mr, al] of moss) {
+    ctx.beginPath();
+    ctx.ellipse(mx, my, ma, mb, mr, 0, TAU);
+    ctx.fillStyle = `rgba(96,122,66,${(al * 0.75).toFixed(2)})`;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(mx - 1.5, my - 1.5, ma * 0.55, mb * 0.55, mr, 0, TAU);
+    ctx.fillStyle = `rgba(128,152,84,${(al * 0.6).toFixed(2)})`;
+    ctx.fill();
+  }
+  ctx.restore();
+  // 左上のリムライト
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,252,240,0.3)';
+  for (let i = 0; i < pts.length; i++) {
+    const p1 = pts[i], p2 = pts[(i + 1) % pts.length];
+    if ((p1[0] + p2[0]) / 2 + (p1[1] + p2[1]) / 2 < -8) {
+      ctx.beginPath();
+      ctx.moveTo(p1[0], p1[1]);
+      ctx.lineTo(p2[0], p2[1]);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawPond(p, time) {
+  if (!p._shape) {
+    const r = seededRnd(p.seed);
+    const pts = [];
+    const n = 18;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU;
+      const wob = 1 + Math.sin(a * 3 + r(TAU)) * 0.1 + r(-0.05, 0.05);
+      pts.push([Math.cos(a) * 54 * wob, Math.sin(a) * 40 * wob]);
+    }
+    // 縁石: 外周に沿って小石を並べる
+    const rim = [];
+    for (let i = 0; i < 15; i++) {
+      const a = (i / 15) * TAU + r(-0.1, 0.1);
+      rim.push([Math.cos(a) * 57, Math.sin(a) * 43, r(TAU), r(0.2, 0.3), Math.floor(r(14))]);
+    }
+    // 蓮の葉と鯉
+    const lily = [[r(-26, 22), r(-20, 16), r(6, 9), r(TAU)], [r(-20, 26), r(-14, 20), r(4.5, 7), r(TAU)]];
+    p._shape = { pts, rim, lily, koiP: r(TAU), koiP2: r(TAU) };
+  }
+  const { pts, rim, lily, koiP, koiP2 } = p._shape;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  // くぼみの影
+  ctx.beginPath();
+  ctx.ellipse(0, 2, 60, 46, 0, 0, TAU);
+  ctx.fillStyle = 'rgba(14,10,5,0.3)';
+  ctx.fill();
+  // 水面
+  const path = () => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+  };
+  const wg = ctx.createRadialGradient(-10, -8, 6, 0, 0, 58);
+  wg.addColorStop(0, '#3d6a70');
+  wg.addColorStop(0.6, '#2c5158');
+  wg.addColorStop(1, '#1e3a41');
+  path();
+  ctx.fillStyle = wg;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(10,20,24,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.save();
+  path();
+  ctx.clip();
+  // ゆっくり広がる波紋
+  for (let i = 0; i < 2; i++) {
+    const rr = ((time * 6 + i * 21) % 42);
+    ctx.beginPath();
+    ctx.ellipse(-6, -4, rr, rr * 0.72, 0, 0, TAU);
+    ctx.strokeStyle = `rgba(210,235,240,${(0.16 * (1 - rr / 42)).toFixed(3)})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  // 空の映り込み(ゆらゆら)
+  ctx.beginPath();
+  ctx.ellipse(-14, -10, 16 + Math.sin(time * 0.9) * 1.5, 6, -0.5, 0, TAU);
+  ctx.fillStyle = 'rgba(235,245,248,0.10)';
+  ctx.fill();
+  // 錦鯉2匹(ゆっくり回遊)
+  for (const [phase, col, spd, rad] of [[koiP, '#d96830', 0.32, 24], [koiP2, '#e8e2d4', 0.26, 30]]) {
+    const a = time * spd + phase;
+    const kx = Math.cos(a) * rad, ky = Math.sin(a) * rad * 0.68;
+    const heading = a + Math.PI / 2;
+    ctx.save();
+    ctx.translate(kx, ky);
+    ctx.rotate(heading);
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 5, 1.9, 0, 0, TAU);
+    ctx.fillStyle = col;
+    ctx.fill();
+    // 模様と尾びれ
+    ctx.beginPath();
+    ctx.arc(1.2, 0, 1.2, 0, TAU);
+    ctx.fillStyle = col === '#e8e2d4' ? '#d96830' : 'rgba(40,30,24,0.5)';
+    ctx.fill();
+    const tw = Math.sin(time * 7 + phase) * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-4.4, 0);
+    ctx.quadraticCurveTo(-7.5, tw, -8.5, tw * 1.6);
+    ctx.quadraticCurveTo(-7, tw + 1, -4.4, 0.8);
+    ctx.closePath();
+    ctx.fillStyle = col;
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  // 蓮の葉
+  for (const [lx, ly, lr, la] of lily) {
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(la);
+    ctx.beginPath();
+    ctx.arc(0, 0, lr, 0.25, TAU - 0.25);
+    ctx.lineTo(0, 0);
+    ctx.closePath();
+    ctx.fillStyle = '#4f7a44';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(24,40,20,0.4)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+  // 縁石
+  for (const [rx, ry, ra, rs, ri] of rim) {
+    const spr = stoneSprites[ri % stoneSprites.length];
+    ctx.save();
+    ctx.translate(rx, ry);
+    ctx.rotate(ra);
+    ctx.scale(rs, rs);
+    ctx.drawImage(spr, -32, -32);
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -2923,8 +3209,15 @@ elReset.addEventListener('click', () => {
   autoKettles.length = 0;
   autoSprinklers.length = 0;
   goats.length = 0;
+  gardenStones.length = 0;
+  ponds.length = 0;
   sweeperLevel = 0;
   sweepFx = null;
+  // 崩れアニメ進行中の草を除去(リセット直後にカウントが1から始まらないように)
+  for (let i = weeds.length - 1; i >= 0; i--) {
+    if (weeds[i].removing) weeds.splice(i, 1);
+  }
+  weedLayerDirty = true;
   saveAutoItems();
   updateHud();
   elReset.classList.remove('arm');
@@ -3552,6 +3845,8 @@ function render(time) {
   }
 
   // ホームセンターの設置物(エフェクトの上・注ぎやかんの下)
+  for (const st of gardenStones) drawGardenStone(st);
+  for (const p of ponds) drawPond(p, time);
   for (const d of autoSprinklers) drawSprinkler(d, time);
   for (const d of autoKettles) drawAutoKettle(d, time);
   for (const g2 of goats) drawGoat(g2, time);
@@ -3646,6 +3941,8 @@ function resize() {
     for (const d of autoKettles) { d.x *= fx; d.y *= fy; }
     for (const d of autoSprinklers) { d.x *= fx; d.y *= fy; }
     for (const g2 of goats) { g2.x *= fx; g2.y *= fy; g2.wander = null; }
+    for (const st of gardenStones) { st.x *= fx; st.y *= fy; }
+    for (const p of ponds) { p.x *= fx; p.y *= fy; }
   }
   if (!gravelCanvas || !wetCanvas) {
     // 初回だけ即時生成

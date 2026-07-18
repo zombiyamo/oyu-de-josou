@@ -81,6 +81,60 @@ const { launch, INDEX } = require('./_launch');
       const last = cards[cards.length - 1].getBoundingClientRect();
       return cards.length === 13 && last.bottom <= p.getBoundingClientRect().bottom + 2;
     }));
+    await page.evaluate(() => closePanel());
+
+    // つむじ風: 枯れ草をまとめて片付ける
+    await page.evaluate(() => {
+      sweeperLevel = 1;
+      let n = 0;
+      for (const w of weeds) if (!w.removing && w.wither < 1 && n < 6) { w.wither = 1; n++; }
+      sweeperTimer = 0.05;
+    });
+    await page.waitForTimeout(2500);
+    t('つむじ風が枯れ草をまとめて片付ける', await page.evaluate(() =>
+      !weeds.some((w) => w.wither >= 1 && !w.removing)));
+    await page.evaluate(() => { sweeperLevel = 0; });   // 以降のテストを乱さない
+
+    // からくりヤギ: 枯れ草を食べて除草数が増える
+    const goatBefore = await page.evaluate(() => {
+      const w = weeds.find((x) => !x.removing && x.wither < 1);
+      w.wither = 1;
+      placeAutoItem('goat', { x: w.x + 22, y: w.y });
+      return totalKilled;
+    });
+    await page.waitForTimeout(6000);
+    t('からくりヤギが枯れ草を食べて除草数が増える',
+      await page.evaluate((b) => totalKilled > b, goatBefore));
+
+    // 庭づくり(苔石・池): 購入 → 設置 → 範囲内の草が片付く → 生えなくなる
+    await page.evaluate(() => { totalKilled = 20000; updateHud(); });   // クリア後想定
+    await page.click('#shopBtn');
+    await page.click('#shopList .shopbuy[data-kind="stone"]');
+    await page.click('#shopList .shopbuy[data-kind="pond"]');
+    t('苔石と池を購入・設置できる', await page.evaluate(() =>
+      gardenStones.length === 1 && ponds.length === 1 &&
+      JSON.parse(localStorage.getItem('oyu_autoItems')).pond.length === 1));
+    await page.evaluate(() => closePanel());
+    t('飾りの範囲の草が片付いていく', await page.evaluate(() => {
+      const p = ponds[0];
+      return weeds.every((w) => w.removing ||
+        (w.x - p.x) ** 2 + (w.y - p.y) ** 2 >= (POND_R - 8) ** 2);
+    }));
+    // 20分ぶん早回ししても、飾りの範囲には草が生えない
+    t('飾りの範囲には草が生えない(早回し20分)', await page.evaluate(() => {
+      let simT = 5000;
+      for (let i = 0; i < 12000; i++) { update(0.1, simT); simT += 0.1; }
+      return !weeds.some((w) => !w.removing && inDecoration(w.x, w.y));
+    }));
+
+    // リセットで記録・設置物・飾りが全部消える
+    await page.click('#helpBtn');
+    await page.click('#resetBtn');
+    await page.click('#resetBtn');
+    await page.waitForTimeout(200);
+    t('リセットで記録と設置物が消える', await page.evaluate(() =>
+      totalKilled === 0 && spentPoints === 0 && autoKettles.length === 0 &&
+      gardenStones.length === 0 && ponds.length === 0));
 
     t('デスクトップ: ページエラーなし', errors.length === 0);
     await ctx2.close();
