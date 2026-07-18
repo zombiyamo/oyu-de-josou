@@ -1554,6 +1554,7 @@ function drawWeed(w, time) {
           ctx.ellipse(d * (0.4 + k * 0.32), Math.sin(k * 5 + w.swayPhase) * width * 0.25,
                       len * 0.34, width * 0.52, k * 0.5, 0, TAU);
           ctx.fill();
+          texFill(ctx, 0.5 * hiFade);
         }
         ctx.fillStyle = hslStr(col[0] + 6, col[1], clamp(col[2] + 12 * hiFade, 4, 92));
         for (let k = 0; k < 4; k++) {

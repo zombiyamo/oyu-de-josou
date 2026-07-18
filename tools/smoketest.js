@@ -27,6 +27,9 @@ const { launch, INDEX } = require('./_launch');
     await page.evaluate(() => closePanel());
 
     t('草が生えている', await page.evaluate(() => weeds.length > 30));
+    // 実写の葉テクスチャの読み込み(壊れたdata URIだと無音でテクスチャなしに劣化するため)
+    t('葉の実写テクスチャが読み込まれている', await page.evaluate(() =>
+      GRASS_TEX.complete && GRASS_TEX.naturalWidth > 0));
 
     // 長押しで注ぐ → やかんが出て草に熱湯がかかる
     // (着水点は指のワールド座標から(-36,+40)。実在の草を狙う)
