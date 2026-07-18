@@ -129,6 +129,9 @@ const { launch, INDEX } = require('./_launch');
     t('苔石と池を購入・設置できる', await page.evaluate(() =>
       gardenStones.length === 1 && ponds.length === 1 &&
       JSON.parse(localStorage.getItem('oyu_autoItems')).pond.length === 1));
+    // 実写苔テクスチャの読み込み(壊れたdata URIだと無音でテクスチャなしに劣化するため)
+    t('苔庭の実写テクスチャが読み込まれている', await page.evaluate(() =>
+      MOSS_TEX.complete && MOSS_TEX.naturalWidth > 0));
     await page.evaluate(() => closePanel());
     t('飾りの範囲の草が片付いていく', await page.evaluate(() =>
       weeds.every((w) => w.removing || !inDecoration(w.x, w.y))));

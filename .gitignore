@@ -1,3 +1,7 @@
 node_modules/
 package-lock.json
 tools/out/
+# tools/mosstex.js の出力(誤コミット防止)
+tile.webp.txt
+tile.jpeg.txt
+preview.png
