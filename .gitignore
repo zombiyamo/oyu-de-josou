@@ -1,7 +1,9 @@
 node_modules/
 package-lock.json
 tools/out/
-# tools/mosstex.js の出力(誤コミット防止)
+# tools/mosstex.js・tools/grasstex.js の出力(誤コミット防止)
 tile.webp.txt
 tile.jpeg.txt
 preview.png
+grain.jpeg.txt
+grain_preview.png
