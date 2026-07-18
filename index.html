@@ -107,6 +107,13 @@
     background: rgba(0,0,0,.08); color: #666;
   }
   .setbtn.on { background: #5c7c4f; color: #fff; }
+  #updatesTitle {
+    font-size: 13px; font-weight: 700; margin: 16px 0 6px;
+    padding-top: 12px; border-top: 1px solid rgba(0,0,0,.07);
+  }
+  .updrow { display: flex; gap: 10px; font-size: 11.5px; line-height: 1.55; margin: 6px 0; }
+  .updrow .d { flex: none; opacity: .5; font-variant-numeric: tabular-nums; }
+  .updrow .t { opacity: .85; }
   #shopPoints { font-size: 15px; font-weight: 800; color: #4a6440; margin: -2px 0 2px; }
   #shopHint { font-size: 11px; opacity: .6; margin-bottom: 6px; }
   .shoprow { display: flex; align-items: center; gap: 12px; padding: 12px 2px;
@@ -242,6 +249,8 @@
       <div class="setinfo"><div class="setname" id="psName"></div><div class="setdesc" id="psDesc"></div></div>
       <button class="setbtn" id="psToggle"></button>
     </div>
+    <h3 id="updatesTitle"></h3>
+    <div id="updatesList"></div>
   </div>
   <div class="panel hidden" id="onboardPanel">
     <h2 id="obTitle"></h2>
@@ -339,6 +348,7 @@ const LOCALES = {
     psName: '🔋 省電力モード',
     psDesc: '描画を軽くして発熱と電池消費をおさえます。見た目がほんの少し柔らかくなります',
     on: 'オン', off: 'オフ',
+    updatesTitle: '📋 アップデート情報',
     shopTitle: '🛒 ホームセンター',
     shopPoints: (n) => `除草ポイント ${n}pt`,
     shopHint: '草を1本片付けるごとに1ポイントたまります(使っても図鑑の進行は減りません)',
@@ -429,6 +439,7 @@ const LOCALES = {
     psName: '🔋 Battery saver',
     psDesc: 'Lightens rendering to reduce heat and battery drain. Visuals get a touch softer',
     on: 'On', off: 'Off',
+    updatesTitle: '📋 Updates',
     shopTitle: '🛒 Garden Store',
     shopPoints: (n) => `Weeding points: ${n}pt`,
     shopHint: 'Every weed you clear earns 1 point (spending never affects your collection progress)',
@@ -519,6 +530,7 @@ const LOCALES = {
     psName: '🔋 省电模式',
     psDesc: '降低渲染负担,减少发热和耗电。画面会稍微柔和一点',
     on: '开', off: '关',
+    updatesTitle: '📋 更新信息',
     shopTitle: '🛒 园艺商店',
     shopPoints: (n) => `除草点数 ${n}pt`,
     shopHint: '每清理1株杂草获得1点(消费不会影响图鉴进度)',
@@ -609,6 +621,7 @@ const LOCALES = {
     psName: '🔋 절전 모드',
     psDesc: '렌더링을 가볍게 해 발열과 배터리 소모를 줄입니다. 화면이 아주 살짝 부드러워집니다',
     on: '켬', off: '끔',
+    updatesTitle: '📋 업데이트',
     shopTitle: '🛒 원예용품점',
     shopPoints: (n) => `제초 포인트 ${n}pt`,
     shopHint: '잡초 1개를 치울 때마다 1포인트(사용해도 도감 진행에는 영향 없음)',
@@ -656,10 +669,75 @@ const LOCALES = {
   }
 };
 const browserLang = (navigator.language || 'en').toLowerCase();
-const L = browserLang.startsWith('ja') ? LOCALES.ja :
-          browserLang.startsWith('zh') ? LOCALES.zh :
-          browserLang.startsWith('ko') ? LOCALES.ko :
-          LOCALES.en;
+const LANG = browserLang.startsWith('ja') ? 'ja' :
+             browserLang.startsWith('zh') ? 'zh' :
+             browserLang.startsWith('ko') ? 'ko' : 'en';
+const L = LOCALES[LANG];
+
+/* アップデート情報(設定パネルに表示。新しい順)。
+   プレイヤーに見える変更をしたらここにも1行追加する(4言語) */
+const UPDATES = [
+  { d: '2026-07-18', t: {
+    ja: '苔石が「苔と岩の庭」に。苔の絨毯+枯滝の石組+飛石',
+    en: 'Moss Stone reworked into a moss-and-rock garden with stepping stones',
+    zh: '苔石变为苔与岩之庭(石组+飞石)',
+    ko: '이끼 정원 리뉴얼(돌무리+디딤돌)' } },
+  { d: '2026-07-18', t: {
+    ja: 'クリア後の庭づくり: 苔石と池が買えるように(その範囲には草が生えない)',
+    en: 'Post-completion gardening: Moss Garden & Pond (weeds keep clear of them)',
+    zh: '通关后庭园建设: 苔庭与水池(范围内不长草)',
+    ko: '컴플리트 후 정원 만들기: 이끼 정원과 연못' } },
+  { d: '2026-07-18', t: {
+    ja: 'ホームセンターの収支を実測ベースで調整。所持ポイントを右上に常時表示',
+    en: 'Shop economy rebalanced; weeding points now shown in the HUD',
+    zh: '商店经济平衡调整; 除草点数常驻显示',
+    ko: '상점 밸런스 조정, 포인트를 HUD에 표시' } },
+  { d: '2026-07-18', t: {
+    ja: 'つむじ風がLv1から序盤価格に。風の音と演出を控えめに',
+    en: 'Whirlwind Lv1 now affordable early; gentler wind sound & visuals',
+    zh: '旋风Lv1更早可购; 风声与演出更柔和',
+    ko: '회오리바람 Lv1 초반 구매 가능, 연출 완화' } },
+  { d: '2026-07-17', t: {
+    ja: 'ししおどし・からくりヤギが仲間入り(和風リニューアル)。自動やかんは小ぶりに',
+    en: 'Shishi-odoshi & the Karakuri Goat join the store; smaller auto kettles',
+    zh: '惊鹿与机关山羊加入商店; 自动水壶变小巧',
+    ko: '시시오도시・태엽 염소 추가, 자동 주전자 소형화' } },
+  { d: '2026-07-17', t: {
+    ja: 'ホームセンター登場: 除草ポイントで自動化アイテムが買える',
+    en: 'Garden Store opens: buy automation with weeding points',
+    zh: '园艺商店开张: 用除草点数购买自动化道具',
+    ko: '원예용품점 오픈: 제초 포인트로 자동화 아이템 구매' } },
+  { d: '2026-07-17', t: {
+    ja: 'グラフィック強化: 光源の統一・石の質感・草のソフトシャドウ',
+    en: 'Visual upgrade: unified lighting, stone texture, soft plant shadows',
+    zh: '画面强化: 统一光源、石头质感与柔和阴影',
+    ko: '그래픽 강화: 광원 통일・질감・소프트 섀도' } },
+  { d: '2026-07-17', t: {
+    ja: '⚙️設定パネルと🔋省電力モードを追加(スマホの発熱対策)',
+    en: 'Settings panel & battery saver added (less phone heat)',
+    zh: '新增设置面板与省电模式(减少手机发热)',
+    ko: '설정 패널・절전 모드 추가(발열 대책)' } },
+  { d: '2026-07-17', t: {
+    ja: 'スマホのボタンを44pxに拡大。図鑑が下までスクロールできない問題を修正',
+    en: 'Bigger touch buttons on phones; fixed collection scrolling',
+    zh: '手机按钮加大; 修复图鉴无法滚动到底的问题',
+    ko: '모바일 버튼 확대, 도감 스크롤 수정' } },
+  { d: '2026-07-17', t: {
+    ja: 'やかんのきせかえ全9種(除草150本ごとに解放)',
+    en: '9 kettle skins (unlock one every 150 weeds)',
+    zh: '9种水壶换装(每除草150株解锁)',
+    ko: '주전자 스킨 9종(150개마다 해금)' } },
+  { d: '2026-07-17', t: {
+    ja: 'ボーナス追加: 金のやかん・3段階レア度の除草剤',
+    en: 'Bonuses: the golden kettle & tiered weed killer drops',
+    zh: '奖励道具: 金水壶与三档稀有度除草剂',
+    ko: '보너스: 금 주전자・3단계 제초제' } },
+  { d: '2026-07-17', t: {
+    ja: '公開! 雑草コレクション・新種の解放・日英中韓の4言語対応',
+    en: 'Released! Weed collection, species unlocks, 4 languages',
+    zh: '正式发布! 杂草图鉴、新品种解锁、四种语言',
+    ko: '공개! 잡초 도감・신종 해금・4개 국어 지원' } },
+];
 
 function applyLocale() {
   document.documentElement.lang = browserLang.startsWith('ja') ? 'ja' :
@@ -688,6 +766,10 @@ function applyLocale() {
   document.getElementById('psDesc').textContent = L.psDesc;
   document.getElementById('shopTitle').textContent = L.shopTitle;
   document.getElementById('shopBtn').setAttribute('aria-label', L.shopTitle);
+  document.getElementById('updatesTitle').textContent = L.updatesTitle;
+  document.getElementById('updatesList').innerHTML = UPDATES
+    .map((u) => `<div class="updrow"><span class="d">${u.d}</span><span class="t">${u.t[LANG] || u.t.en}</span></div>`)
+    .join('');
 }
 
 /* ---------------- 砂利の背景 ---------------- */

@@ -62,6 +62,14 @@ const { launch, INDEX } = require('./_launch');
       await page.evaluate(() => closePanel());
     }
 
+    // 設定パネルにアップデート情報が載っている
+    t('設定にアップデート情報が表示される', await page.evaluate(() => {
+      const rows = document.querySelectorAll('#updatesList .updrow');
+      return rows.length >= 10 &&
+        /^\d{4}-\d{2}-\d{2}$/.test(rows[0].querySelector('.d').textContent) &&
+        rows[0].querySelector('.t').textContent.length > 3;
+    }));
+
     // ショップ購入 → ポイント減・設置・保存
     await page.click('#shopBtn');
     await page.click('#shopList .shopbuy[data-kind="kettle"]');
