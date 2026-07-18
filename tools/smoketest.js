@@ -7,6 +7,10 @@ const { launch, INDEX } = require('./_launch');
   const browser = await launch();
   const results = [];
   const t = (name, cond) => results.push([name, !!cond]);
+  // 固定待ちだと初回起動の遅い環境(CI・並列実行)で落ちるので、条件をポーリングして待つ。
+  // タイムアウトしても例外にせず、直後の t() の評価に判定を委ねる
+  const waitFor = (page, fn, timeout = 5000) =>
+    page.waitForFunction(fn, null, { timeout }).catch(() => {});
 
   // ---------- デスクトップ基本動作 ----------
   {
@@ -19,7 +23,7 @@ const { launch, INDEX } = require('./_launch');
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(INDEX);
-    await page.waitForTimeout(700);
+    await waitFor(page, () => typeof weeds !== 'undefined' && weeds.length > 30);
     await page.evaluate(() => closePanel());
 
     t('草が生えている', await page.evaluate(() => weeds.length > 30));
@@ -32,8 +36,9 @@ const { launch, INDEX } = require('./_launch');
     });
     await page.mouse.move(aim.x, aim.y);
     await page.mouse.down();
-    await page.waitForTimeout(900);
+    await waitFor(page, () => pour.started);
     t('長押しでやかんが出る', await page.evaluate(() => pour.started));
+    await waitFor(page, () => weeds.some((w) => w.scald > 0.1));
     t('お湯で草に熱が入る', await page.evaluate(() => weeds.some((w) => w.scald > 0.1)));
     await page.mouse.up();
 
@@ -47,7 +52,8 @@ const { launch, INDEX } = require('./_launch');
     await page.mouse.down();
     await page.waitForTimeout(35);
     await page.mouse.up();
-    await page.waitForTimeout(1600);
+    await page.waitForFunction((b) => totalKilled > b, husk.before, { timeout: 5000 })
+      .catch(() => {});
     t('タップで枯れ草が片付き除草数が増える',
       await page.evaluate((b) => totalKilled > b, husk.before));
 
@@ -98,7 +104,7 @@ const { launch, INDEX } = require('./_launch');
       for (const w of weeds) if (!w.removing && w.wither < 1 && n < 6) { w.wither = 1; n++; }
       sweeperTimer = 0.05;
     });
-    await page.waitForTimeout(2500);
+    await waitFor(page, () => !weeds.some((w) => w.wither >= 1 && !w.removing), 8000);
     t('つむじ風が枯れ草をまとめて片付ける', await page.evaluate(() =>
       !weeds.some((w) => w.wither >= 1 && !w.removing)));
     await page.evaluate(() => { sweeperLevel = 0; });   // 以降のテストを乱さない
@@ -110,7 +116,8 @@ const { launch, INDEX } = require('./_launch');
       placeAutoItem('goat', { x: w.x + 22, y: w.y });
       return totalKilled;
     });
-    await page.waitForTimeout(6000);
+    await page.waitForFunction((b) => totalKilled > b, goatBefore, { timeout: 12000 })
+      .catch(() => {});
     t('からくりヤギが枯れ草を食べて除草数が増える',
       await page.evaluate((b) => totalKilled > b, goatBefore));
 
@@ -171,7 +178,7 @@ const { launch, INDEX } = require('./_launch');
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(INDEX);
-    await page.waitForTimeout(700);
+    await waitFor(page, () => window.weeds && canvas.width > 0);
     await page.evaluate(() => closePanel());
 
     t('モバイル: 5ボタンが44px以上で画面内に収まる', await page.evaluate(() =>
