@@ -115,10 +115,19 @@ const { launch, INDEX } = require('./_launch');
       gardenStones.length === 1 && ponds.length === 1 &&
       JSON.parse(localStorage.getItem('oyu_autoItems')).pond.length === 1));
     await page.evaluate(() => closePanel());
-    t('飾りの範囲の草が片付いていく', await page.evaluate(() => {
-      const p = ponds[0];
-      return weeds.every((w) => w.removing ||
-        (w.x - p.x) ** 2 + (w.y - p.y) ** 2 >= (POND_R - 8) ** 2);
+    t('飾りの範囲の草が片付いていく', await page.evaluate(() =>
+      weeds.every((w) => w.removing || !inDecoration(w.x, w.y))));
+    // 苔庭(約3割)+池(約5割)で画面の過半が草よけになっている
+    t('苔庭+池が画面の6〜8割を占める', await page.evaluate(() => {
+      let inside = 0, total = 0;
+      for (let gx = 10; gx < W; gx += 12) {
+        for (let gy = 44; gy < H; gy += 12) {
+          total++;
+          if (inDecoration(gx, gy)) inside++;
+        }
+      }
+      const frac = inside / total;
+      return frac > 0.55 && frac < 0.85;
     }));
     // 20分ぶん早回ししても、飾りの範囲には草が生えない
     t('飾りの範囲には草が生えない(早回し20分)', await page.evaluate(() => {
