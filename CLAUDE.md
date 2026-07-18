@@ -1,0 +1,101 @@
+# お湯de除草 〜砂利の庭〜 開発ガイド
+
+砂利の隙間の雑草に熱湯をかけて枯らす癒し系箱庭ブラウザゲーム。
+**外部依存なしの `index.html` 1ファイル完結**(Canvas 2D + Web Audio合成 + localStorage)。
+
+- 公開: https://zombiyamo.github.io/oyu-de-josou/ (GitHub Pages, `main` ブランチ直下)
+- リポジトリ: `zombiyamo/oyu-de-josou`(ローカルのディレクトリ名が `dotfiles` のままの環境もあるが同一リポジトリ)
+- Claude Artifact版: https://claude.ai/code/artifact/b754262c-a839-41fd-8850-3dc236ee68f7
+
+## 開発フロー(「フルコース」— 施主の標準指示)
+
+変更のたびに必ず以下をワンセットで行う:
+
+1. `index.html` を編集
+2. **Playwrightで挙動検証**(`node tools/smoketest.js` + 必要なら変更点特化のスクリプト)
+3. スクリーンショットを撮って目視確認
+4. 日本語でコミット → `git push origin main`(Pagesに数分で反映)
+5. **Artifact再発行**: `index.html` の `<title>` から `</body>` 直前までを切り出して
+   `oyu-de-josou.html` として保存し、Artifactツールで同URLに再発行(favicon 🫖)。
+   `<title>` より前(アクセス解析タグ)は意図的に含めない
+6. スクリーンショット付きで施主に報告
+
+## アーキテクチャ(index.html内の主要システム)
+
+- **座標系**: `ZOOM = 1.6`。ワールド座標 = CSS px ÷ ZOOM。`W, H` はワールド寸法。
+  `DPR = min(devicePixelRatio, 省電力時1.5 / 通常2)`、`RES = DPR * ZOOM`。
+  ポインタ座標は `clientX / ZOOM`。Playwrightから狙う時は逆にワールド×1.6
+- **草**: `weeds[]`。種は `WEED_TYPES`(13種、`unlockAt` で累計除草数により解放。
+  最後は `nijiyotsuba` = 2000本のシークレット)。状態: `scald`(熱湯量)→ 閾値超えで
+  `wither` が進行 → 1.0で枯れ草(タップ/自動化で `startCrumble`)→ 消滅時にキル計上
+- **静的レイヤーキャッシュ**(60fpsの要): 動かない草は `weedLayer` に焼き込み
+  (`w._inLayer` / `w._queued`)。動く草(`isDynamicWeed`: scald中・枯れ進行・生えかけ
+  age<3・崩れ中)だけ毎フレーム描画。全再構築は0.35秒スロットル。
+  **新規スポーンで全再構築を起こさない**(1株ずつ追記)
+- **砂利**: 石スプライト14種を事前生成してスタンプ、`GRAVEL_PAD` 余白付き。
+  `gravelRES !== RES` で再生成。粒状ノイズ・土汚れ・左上光源のリムライトは焼き込み済み
+- **濡れ表現**: `wetCanvas` に destination-out でフェード。8bit量子化対策で
+  蓄積式(`wetFadeAcc`、fillStyle '#000' 必須)。28秒アイドルで完全クリア
+- **時計**: 1日 = 30秒 = 24時間、朝5時開始。`gameHour()`。dayTintが時間帯で変化
+- **アイテム(拾い物)**: `pickups[]`。金のやかん(20秒2本注ぎ)、除草剤3段階
+  (`HERB_TIERS`)。連鎖防止ロジックあり
+- **ホームセンター(自動化)**: `SHOP_ITEMS`。除草ポイント = `totalKilled - spentPoints`
+  (**買っても図鑑進行は遅れない**)。
+  - `autoKettles`(自動やかん・0.6倍サイズ描画・未処理の草だけ狙う)
+  - `autoSprinklers` = **ししおどし**(カコン音 `kon()`、傾き1.2秒で半径75を熱湯漬け)
+  - `goats` = **からくりヤギ**(木製。枯れ草優先、なければ生の草も食べる)
+  - `sweeperLevel` = **つむじ風**(買い切りLv1-4、間隔10/5/3/2秒。通過した枯れ草を
+    順に片付け、量に応じて種を運んで再スポーン=高Lvほど収入増。演出はごく淡く)
+  - 設置は `autoSpot()` が草の多い場所を選ぶ。保存キーは `oyu_autoItems`
+- **省電力モード**: `powerSave`。DPR上限1.5 + フレーム間引き(通常30fps、
+  `sceneCalm()` なら10fps)。新しい常時アニメ要素を足したら `sceneCalm` に条件を追加すること
+- **i18n**: `LOCALES` に ja/en/zh/ko。**文言を足す時は必ず4言語すべて**。未対応言語はen
+- **音**: すべてWeb Audio合成(`initAudio`)。全経路 `audio.master` 経由。
+  癒し系なのでゲインは控えめに(注ぎ0.03台、風0.011、カコン0.05)
+
+## localStorage キー(互換性ポリシー: キー名・型を変えない)
+
+`oyu_totalKilled` `oyu_killsByType` `oyu_muted` `oyu_elapsed` `oyu_kettleSkin`
+`oyu_onboarded` `oyu_powersave` `oyu_spent` `oyu_autoItems`
+(リセットボタンは日数・除草数・解放・スキン・ポイント・設置物を消す。ミュート等の設定は残す)
+
+## ⚠️ パフォーマンスの罠(実際に踏んだもの)
+
+- **renderの描画順**: グラデーションを使う動的オブジェクト(設置物など)は
+  render**終盤**(パーティクルの後、dayTintの前)で描くこと。草レイヤー直後に描いたら
+  Chromiumのcanvasバッチングが崩れて**60fps→10fps**に落ちた実例あり
+- `ctx.shadowBlur` は使わない(重い)。影は radial gradient か焼き込みで
+- 毎フレームの全画面パスを増やさない。背景系は必ず事前レンダリングに焼き込む
+- タップ判定: 押下0.12秒未満=タップ(枯れ草片付け・アイテム取得)、以上=注ぎ。
+  ヘッドレスのタイミング検証は実時間でなくページ内 `pour.holdTime` を見る
+
+## ツール(要: playwright。`CHROMIUM_PATH` で既存Chromiumを指定可能)
+
+- `node tools/smoketest.js` — 基本動作の回帰テスト(注ぐ/タップ/パネル/購入/省電力/モバイルHUD)。**コミット前に必ず実行**
+- `node tools/balance_sim.js` — update()を早回しして構成別の収入(除草/分)を実測。
+  レベルデザイン変更時は必ず回す。健全な目安: ロボ入り〜23/分、フル構成50〜70/分、
+  設備なし放置は0/分(仕様)
+- `node tools/genassets.js ogp-only` — OGP画像の再生成(見た目を大きく変えたら再生成)。
+  **虹の四つ葉(シークレット)が写らないよう `totalKilled=1999` で撮影する実装済み**
+- `node tools/demovideo.js` — プロモ動画撮影(実プレイ録画+ページ内MediaRecorderで
+  ゲーム音声もキャプチャ、白フラッシュ+ビープの同期マーカーでffmpeg合成)
+
+## 公開・運用メモ
+
+- GitHub Pages: `main` 直下。push後数分で反映
+- OGP: Twitterはカードを最大1週間キャッシュ。確実に更新を見せるにはURLに `?v=N`
+- アクセス解析: GoatCounter(https://ymm.goatcounter.com)。タグは head の
+  `<title>` より前に置いてある = Artifact版には含まれない(意図的)
+- PWA: `sw.js` はネットワーク優先。`manifest.webmanifest` とアイコンは genassets 生成
+- リモートに古い作業ブランチ `claude/weed-removal-browser-game-lyop0n` が残っている
+  可能性があるが無害(消すなら GitHub UI から)
+
+## 世界観の約束(施主決定事項)
+
+- 癒し・箱庭・プレッシャーなし。スコア煽りや時間制限は入れない
+- **生き物に熱湯がかかる表現はNG**(ヤギ→からくりヤギに変更した経緯あり)。
+  自動化アイテムは道具・からくり・自然現象で表現する
+- アイテムは和風の風情を優先(ししおどし・つむじ風・からくりヤギ)
+- シークレット種 `nijiyotsuba`(虹色の四つ葉)は README・OGP・SNS画像で**ネタバレ禁止**
+- ゲームのゴールは図鑑コンプ(2000本)。ショップ上位(風Lv3/4、ヤギ2匹目以降)は
+  コンプ後の長期目標として意図的に高価格
