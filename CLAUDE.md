@@ -132,6 +132,10 @@
 - OGP: Twitterはカードを最大1週間キャッシュ。確実に更新を見せるにはURLに `?v=N`
 - アクセス解析: GoatCounter(https://ymm.goatcounter.com)。タグは head の
   `<title>` より前に置いてある = Artifact版には含まれない(意図的)
+- 検索エンジン: Google Search Consoleで所有権確認済み(`google-site-verification`
+  metaタグ。同じく `<title>` より前でArtifact版には含まれない)。2026-07-21公開の
+  新規サイトなのでインデックス登録は「URL検査→インデックス登録をリクエスト」で
+  早期化を依頼済み(施主対応)
 - PWA: `sw.js` はネットワーク優先。`manifest.webmanifest` とアイコンは genassets 生成
 - リモートに古い作業ブランチ `claude/weed-removal-browser-game-lyop0n` が残っている
   可能性があるが無害(消すなら GitHub UI から)
