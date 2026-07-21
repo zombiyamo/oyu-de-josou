@@ -130,6 +130,8 @@
 
 - GitHub Pages: `main` 直下。push後数分で反映
 - OGP: Twitterはカードを最大1週間キャッシュ。確実に更新を見せるにはURLに `?v=N`
+  (`?v=N` は別ページとしてSearch Consoleに登録しない。`link rel="canonical"` で
+  正規URLを明示済みなので重複コンテンツ扱いは防げている)
 - アクセス解析: GoatCounter(https://ymm.goatcounter.com)。タグは head の
   `<title>` より前に置いてある = Artifact版には含まれない(意図的)
 - 検索エンジン: Google Search Consoleで所有権確認済み(`google-site-verification`
