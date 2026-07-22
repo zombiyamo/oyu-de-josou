@@ -19,6 +19,23 @@
 <meta property="og:image:height" content="630">
 <meta property="og:site_name" content="お湯de除草">
 <meta name="twitter:card" content="summary_large_image">
+<!-- 構造化データ: 検索エンジンに「ゲーム」というエンティティを明示 -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  "name": "お湯de除草 〜砂利の庭〜",
+  "alternateName": "お湯de除草",
+  "url": "https://zombiyamo.github.io/oyu-de-josou/",
+  "image": "https://zombiyamo.github.io/oyu-de-josou/ogp.png",
+  "description": "砂利の隙間の雑草に熱湯をかけて、のんびり枯らす癒し系ブラウザゲーム。枯れ草はタップでお片付け。全13種の雑草コレクションを集めよう。",
+  "genre": "シミュレーション",
+  "inLanguage": "ja",
+  "applicationCategory": "Game",
+  "operatingSystem": "Any (Webブラウザ)",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" }
+}
+</script>
 <!-- アクセス解析 (GoatCounter): クッキー不使用。localhostやfile://は自動でカウント対象外 -->
 <script data-goatcounter="https://ymm.goatcounter.com/count"
         async src="https://gc.zgo.at/count.js"></script>
@@ -42,7 +59,7 @@
     background: linear-gradient(rgba(20,16,10,.42), rgba(20,16,10,0));
     color: #fff; pointer-events: none;
   }
-  #title { font-size: 15px; font-weight: 700; letter-spacing: .04em;
+  #title { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: .04em;
     text-shadow: 0 1px 3px rgba(0,0,0,.5); white-space: nowrap;
     min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
   #title small { font-weight: 400; font-size: 11px; opacity: .85; margin-left: 4px; }
@@ -204,7 +221,7 @@
 <body>
 <canvas id="c"></canvas>
 <div id="hud">
-  <div id="title">お湯de除草<small>〜砂利の庭〜</small></div>
+  <h1 id="title">お湯de除草<small>〜砂利の庭〜</small></h1>
   <div id="stats"><span id="day">1日目</span><span id="count">枯らした草 0本</span><span id="pts"></span></div>
   <button class="hudbtn" id="helpBtn" aria-label="あそびかた">?</button>
   <button class="hudbtn" id="bookBtn" aria-label="雑草コレクション">📖</button>

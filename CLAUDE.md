@@ -137,7 +137,9 @@
 - 検索エンジン: Google Search Consoleで所有権確認済み(`google-site-verification`
   metaタグ。同じく `<title>` より前でArtifact版には含まれない)。2026-07-21公開の
   新規サイトなのでインデックス登録は「URL検査→インデックス登録をリクエスト」で
-  早期化を依頼済み(施主対応)
+  早期化を依頼済み(施主対応)。オンページSEO: `#title`(表示中のゲーム名)を
+  `<h1>` に、`application/ld+json` で VideoGame の構造化データを追加済み
+  (`site:zombiyamo.github.io` で検索してインデックス状況を確認できる)
 - PWA: `sw.js` はネットワーク優先。`manifest.webmanifest` とアイコンは genassets 生成
 - リモートに古い作業ブランチ `claude/weed-removal-browser-game-lyop0n` が残っている
   可能性があるが無害(消すなら GitHub UI から)
