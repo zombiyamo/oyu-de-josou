@@ -133,8 +133,10 @@
     position: fixed; z-index: 5;
     right: calc(10px + env(safe-area-inset-right));
     bottom: calc(10px + env(safe-area-inset-bottom));
-    width: 44px; height: 44px; font-size: 19px;
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
   }
+  #shareBtn svg { width: 21px; height: 21px; display: block; }
   #sharePreview {
     /* 縦長スクショ(スマホ)でもボタンが隠れないよう高さを抑えて中に収める */
     display: block; width: 100%; max-height: 38vh; object-fit: contain;
@@ -257,7 +259,7 @@
   <button class="hudbtn" id="settingsBtn" aria-label="設定">⚙️</button>
 </div>
 <div id="hint" class="hide"></div>
-<button class="hudbtn" id="shareBtn" aria-label="スクショを共有">📷</button>
+<button class="hudbtn" id="shareBtn" aria-label="スクショを共有"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 6.5 12 2.5l4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>
 <div id="overlay" class="hidden">
   <div class="panel hidden" id="helpPanel">
     <button class="closex" data-close aria-label="閉じる">✕</button>
@@ -788,10 +790,10 @@ const L = LOCALES[LANG];
    プレイヤーに見える変更をしたらここにも1行追加する(4言語) */
 const UPDATES = [
   { d: '2026-07-23', t: {
-    ja: '右下の📷ボタンでスクショを共有・保存できるようになりました',
-    en: 'New 📷 button (bottom right) to share or save screenshots',
-    zh: '新增右下角📷按钮: 分享/保存截图',
-    ko: '우측 하단 📷 버튼으로 스크린샷 공유/저장' } },
+    ja: '右下の共有ボタンでスクショを共有・保存できるようになりました',
+    en: 'New share button (bottom right) to share or save screenshots',
+    zh: '新增右下角分享按钮: 分享/保存截图',
+    ko: '우측 하단 공유 버튼으로 스크린샷 공유/저장' } },
   { d: '2026-07-18', t: {
     ja: '雑草の葉に、実際に撮影した本物の草の質感をうっすら重ねました',
     en: 'Weed leaves now carry a subtle real photographed grass texture',
