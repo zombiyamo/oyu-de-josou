@@ -46,8 +46,10 @@ const { launch, INDEX } = require('./_launch');
     await page.mouse.up();
 
     // タップで枯れ草を片付け → 除草数が増える
+    // (右下隅は📷シェアボタンにクリックを吸われるので避ける)
     const husk = await page.evaluate(() => {
-      const w = weeds.find((x) => !x.removing && x.wither < 1);
+      const w = weeds.find((x) => !x.removing && x.wither < 1 &&
+        !(x.x * ZOOM > innerWidth - 70 && x.y * ZOOM > innerHeight - 70));
       w.wither = 1;
       return { x: w.x * ZOOM, y: w.y * ZOOM, before: totalKilled };
     });
@@ -78,6 +80,38 @@ const { launch, INDEX } = require('./_launch');
         /^\d{4}-\d{2}-\d{2}$/.test(rows[0].querySelector('.d').textContent) &&
         rows[0].querySelector('.t').textContent.length > 3;
     }));
+
+    // スクショ共有: パネルが開き、プレビュー画像・各リンクが用意される
+    await page.click('#shareBtn');
+    t('共有パネルが開く', await page.evaluate(() =>
+      !document.getElementById('sharePanel').classList.contains('hidden')));
+    await waitFor(page, () => {
+      const im = document.getElementById('sharePreview');
+      return im.src.startsWith('blob:') && im.naturalWidth > 0;
+    });
+    t('共有プレビュー画像が生成される', await page.evaluate(() => {
+      const im = document.getElementById('sharePreview');
+      return im.src.startsWith('blob:') && im.naturalWidth > 0;
+    }));
+    t('X・LINEリンクにゲームURLとハッシュタグが入る', await page.evaluate(() => {
+      const x = document.getElementById('shareX').href;
+      const l = document.getElementById('shareLine').href;
+      return x.includes('twitter.com/intent/tweet') &&
+        x.includes(encodeURIComponent('お湯de除草')) &&
+        x.includes(encodeURIComponent('https://zombiyamo.github.io/oyu-de-josou/')) &&
+        l.includes('line.me/R/share') &&
+        l.includes(encodeURIComponent('#お湯de除草'));
+    }));
+    t('画像保存リンクが用意される', await page.evaluate(() => {
+      const a = document.getElementById('shareSave');
+      return a.getAttribute('download') === 'oyu-de-josou.png' &&
+        a.href.startsWith('blob:');
+    }));
+    // Web Share API非対応環境では「共有…」ボタンが出ない
+    t('共有メニュー非対応時はボタンが隠れる', await page.evaluate(() =>
+      !!navigator.share ||
+      document.getElementById('shareNative').classList.contains('hidden')));
+    await page.evaluate(() => closePanel());
 
     // ショップ購入 → ポイント減・設置・保存
     await page.click('#shopBtn');
@@ -187,10 +221,11 @@ const { launch, INDEX } = require('./_launch');
     await waitFor(page, () => window.weeds && canvas.width > 0);
     await page.evaluate(() => closePanel());
 
-    t('モバイル: 5ボタンが44px以上で画面内に収まる', await page.evaluate(() =>
-      ['helpBtn', 'bookBtn', 'kettleBtn', 'shopBtn', 'settingsBtn'].every((id) => {
+    t('モバイル: 6ボタンが44px以上で画面内に収まる', await page.evaluate(() =>
+      ['helpBtn', 'bookBtn', 'kettleBtn', 'shopBtn', 'settingsBtn', 'shareBtn'].every((id) => {
         const r = document.getElementById(id).getBoundingClientRect();
-        return r.width >= 44 && r.right <= window.innerWidth + 1 && r.left >= 0;
+        return r.width >= 44 && r.right <= window.innerWidth + 1 && r.left >= 0 &&
+          r.bottom <= window.innerHeight + 1;
       })));
     t('モバイル: 統計がはみ出さない', await page.evaluate(() =>
       document.getElementById('stats').getBoundingClientRect().right <= window.innerWidth));

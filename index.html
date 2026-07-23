@@ -128,6 +128,32 @@
     background: rgba(0,0,0,.08); color: #666;
   }
   .setbtn.on { background: #5c7c4f; color: #fff; }
+  /* 右下のスクショ共有ボタンと共有パネル */
+  #shareBtn {
+    position: fixed; z-index: 5;
+    right: calc(10px + env(safe-area-inset-right));
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    width: 44px; height: 44px; font-size: 19px;
+  }
+  #sharePreview {
+    /* 縦長スクショ(スマホ)でもボタンが隠れないよう高さを抑えて中に収める */
+    display: block; width: 100%; max-height: 38vh; object-fit: contain;
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,.12); background: rgba(0,0,0,.05);
+    margin-top: 4px;
+  }
+  #shareHint { font-size: 11px; opacity: .6; margin: 6px 0 10px; }
+  #shareBtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sharebtn {
+    display: flex; align-items: center; justify-content: center;
+    border: 0; border-radius: 999px; cursor: pointer;
+    padding: 10px 8px; font-size: 13px; font-weight: 700;
+    background: rgba(0,0,0,.08); color: #3a352c; text-decoration: none;
+    touch-action: manipulation;
+  }
+  .sharebtn:active { background: rgba(0,0,0,.16); }
+  .sharebtn.hidden { display: none; }
+  .sharebtn:disabled, a.sharebtn:not([href]) { opacity: .45; pointer-events: none; }
   #updatesTitle {
     font-size: 13px; font-weight: 700; margin: 16px 0 6px;
     padding-top: 12px; border-top: 1px solid rgba(0,0,0,.07);
@@ -178,6 +204,7 @@
   .card.locked { opacity: .55; }
   .card .q { font-size: 30px; line-height: 64px; height: 64px; }
   #hint {
+    z-index: 20;   /* 共有パネル等のオーバーレイ(z10)より手前に出す */
     position: fixed; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
     background: rgba(20,16,10,.5); color: #fff;
@@ -230,6 +257,7 @@
   <button class="hudbtn" id="settingsBtn" aria-label="設定">⚙️</button>
 </div>
 <div id="hint" class="hide"></div>
+<button class="hudbtn" id="shareBtn" aria-label="スクショを共有">📷</button>
 <div id="overlay" class="hidden">
   <div class="panel hidden" id="helpPanel">
     <button class="closex" data-close aria-label="閉じる">✕</button>
@@ -272,6 +300,19 @@
     </div>
     <h3 id="updatesTitle"></h3>
     <div id="updatesList"></div>
+  </div>
+  <div class="panel hidden" id="sharePanel">
+    <button class="closex" data-close aria-label="閉じる">✕</button>
+    <h2 id="shareTitle"></h2>
+    <img id="sharePreview" alt="">
+    <div id="shareHint"></div>
+    <div id="shareBtns">
+      <button class="sharebtn" id="shareNative"></button>
+      <a class="sharebtn" id="shareX" target="_blank" rel="noopener"></a>
+      <a class="sharebtn" id="shareLine" target="_blank" rel="noopener"></a>
+      <button class="sharebtn" id="shareCopy"></button>
+      <a class="sharebtn" id="shareSave" download="oyu-de-josou.png"></a>
+    </div>
   </div>
   <div class="panel hidden" id="onboardPanel">
     <h2 id="obTitle"></h2>
@@ -369,6 +410,18 @@ const LOCALES = {
     psName: '🔋 省電力モード',
     psDesc: '描画を軽くして発熱と電池消費をおさえます。見た目がほんの少し柔らかくなります',
     on: 'オン', off: 'オフ',
+    shareTitle: '📷 スクショを共有',
+    shareBtnLabel: 'スクショを共有・保存',
+    shareMsg: (n) => n > 0
+      ? `砂利の庭の雑草を${n}本枯らしました 🫖`
+      : '雑草に熱湯をかけてのんびり枯らす、癒し系の箱庭ゲーム 🫖',
+    shareNative: '📤 共有…',
+    shareX: '𝕏 でポスト',
+    shareLine: '💬 LINEで送る',
+    shareCopy: '📋 テキストをコピー',
+    shareCopied: 'コピーしました 📋',
+    shareSave: '⬇️ 画像を保存',
+    shareHint: '画像は長押し(または右クリック)でも保存できます',
     updatesTitle: '📋 アップデート情報',
     shopTitle: '🛒 ホームセンター',
     shopPoints: (n) => `除草ポイント ${n}pt`,
@@ -460,6 +513,18 @@ const LOCALES = {
     psName: '🔋 Battery saver',
     psDesc: 'Lightens rendering to reduce heat and battery drain. Visuals get a touch softer',
     on: 'On', off: 'Off',
+    shareTitle: '📷 Share a Screenshot',
+    shareBtnLabel: 'Share / save a screenshot',
+    shareMsg: (n) => n > 0
+      ? `I've cleared ${n} weeds in my gravel garden 🫖`
+      : 'A cozy little game about pouring hot water on weeds 🫖',
+    shareNative: '📤 Share…',
+    shareX: 'Post on 𝕏',
+    shareLine: '💬 Share on LINE',
+    shareCopy: '📋 Copy text',
+    shareCopied: 'Copied 📋',
+    shareSave: '⬇️ Save image',
+    shareHint: 'You can also long-press (or right-click) the image to save it',
     updatesTitle: '📋 Updates',
     shopTitle: '🛒 Garden Store',
     shopPoints: (n) => `Weeding points: ${n}pt`,
@@ -551,6 +616,16 @@ const LOCALES = {
     psName: '🔋 省电模式',
     psDesc: '降低渲染负担,减少发热和耗电。画面会稍微柔和一点',
     on: '开', off: '关',
+    shareTitle: '📷 分享截图',
+    shareBtnLabel: '分享/保存截图',
+    shareMsg: (n) => n > 0 ? `我在砂石庭院里除掉了${n}棵杂草 🫖` : '给杂草浇热水的治愈系小游戏 🫖',
+    shareNative: '📤 分享…',
+    shareX: '发到 𝕏',
+    shareLine: '💬 用LINE发送',
+    shareCopy: '📋 复制文字',
+    shareCopied: '已复制 📋',
+    shareSave: '⬇️ 保存图片',
+    shareHint: '长按(或右键)图片也可以保存',
     updatesTitle: '📋 更新信息',
     shopTitle: '🛒 园艺商店',
     shopPoints: (n) => `除草点数 ${n}pt`,
@@ -642,6 +717,16 @@ const LOCALES = {
     psName: '🔋 절전 모드',
     psDesc: '렌더링을 가볍게 해 발열과 배터리 소모를 줄입니다. 화면이 아주 살짝 부드러워집니다',
     on: '켬', off: '끔',
+    shareTitle: '📷 스크린샷 공유',
+    shareBtnLabel: '스크린샷 공유/저장',
+    shareMsg: (n) => n > 0 ? `자갈 정원의 잡초를 ${n}포기 없앴어요 🫖` : '잡초에 뜨거운 물을 부어 없애는 힐링 게임 🫖',
+    shareNative: '📤 공유…',
+    shareX: '𝕏에 올리기',
+    shareLine: '💬 LINE으로 보내기',
+    shareCopy: '📋 텍스트 복사',
+    shareCopied: '복사했습니다 📋',
+    shareSave: '⬇️ 이미지 저장',
+    shareHint: '이미지를 길게 누르면(우클릭) 저장할 수 있어요',
     updatesTitle: '📋 업데이트',
     shopTitle: '🛒 원예용품점',
     shopPoints: (n) => `제초 포인트 ${n}pt`,
@@ -698,6 +783,11 @@ const L = LOCALES[LANG];
 /* アップデート情報(設定パネルに表示。新しい順)。
    プレイヤーに見える変更をしたらここにも1行追加する(4言語) */
 const UPDATES = [
+  { d: '2026-07-23', t: {
+    ja: '右下の📷ボタンでスクショを共有・保存できるようになりました',
+    en: 'New 📷 button (bottom right) to share or save screenshots',
+    zh: '新增右下角📷按钮: 分享/保存截图',
+    ko: '우측 하단 📷 버튼으로 스크린샷 공유/저장' } },
   { d: '2026-07-18', t: {
     ja: '雑草の葉に、実際に撮影した本物の草の質感をうっすら重ねました',
     en: 'Weed leaves now carry a subtle real photographed grass texture',
@@ -797,6 +887,15 @@ function applyLocale() {
   document.getElementById('psDesc').textContent = L.psDesc;
   document.getElementById('shopTitle').textContent = L.shopTitle;
   document.getElementById('shopBtn').setAttribute('aria-label', L.shopTitle);
+  document.getElementById('shareTitle').textContent = L.shareTitle;
+  document.getElementById('shareBtn').setAttribute('aria-label', L.shareBtnLabel);
+  document.getElementById('sharePreview').alt = L.shareTitle;
+  document.getElementById('shareHint').textContent = L.shareHint;
+  document.getElementById('shareNative').textContent = L.shareNative;
+  document.getElementById('shareX').textContent = L.shareX;
+  document.getElementById('shareLine').textContent = L.shareLine;
+  document.getElementById('shareCopy').textContent = L.shareCopy;
+  document.getElementById('shareSave').textContent = L.shareSave;
   document.getElementById('updatesTitle').textContent = L.updatesTitle;
   document.getElementById('updatesList').innerHTML = UPDATES
     .map((u) => `<div class="updrow"><span class="d">${u.d}</span><span class="t">${u.t[LANG] || u.t.en}</span></div>`)
@@ -3644,6 +3743,7 @@ const elKettlePanel = document.getElementById('kettlePanel');
 const elSettingsPanel = document.getElementById('settingsPanel');
 const elShopPanel = document.getElementById('shopPanel');
 const elOnboardPanel = document.getElementById('onboardPanel');
+const elSharePanel = document.getElementById('sharePanel');
 
 function openPanel(which) {
   elOverlay.classList.remove('hidden');
@@ -3653,6 +3753,7 @@ function openPanel(which) {
   elSettingsPanel.classList.toggle('hidden', which !== 'settings');
   elShopPanel.classList.toggle('hidden', which !== 'shop');
   elOnboardPanel.classList.toggle('hidden', which !== 'onboard');
+  elSharePanel.classList.toggle('hidden', which !== 'share');
   if (which === 'book') buildBook();
   if (which === 'kettle') buildKettlePanel();
   if (which === 'shop') buildShop();
@@ -3709,6 +3810,95 @@ document.getElementById('bookBtn').addEventListener('click', () => openPanel('bo
 document.getElementById('kettleBtn').addEventListener('click', () => openPanel('kettle'));
 document.getElementById('shopBtn').addEventListener('click', () => openPanel('shop'));
 document.getElementById('settingsBtn').addEventListener('click', () => openPanel('settings'));
+
+/* ---------------- スクショ共有(右下の📷) ---------------- */
+const SHARE_URL = 'https://zombiyamo.github.io/oyu-de-josou/';
+const SHARE_TAG = 'お湯de除草';
+let shareBlob = null, shareBlobUrl = null;
+
+// いまの画面を1枚に焼く(右下にゲーム名の小さな札を入れる)
+function buildShareShot() {
+  const cv = document.createElement('canvas');
+  cv.width = canvas.width; cv.height = canvas.height;
+  const g = cv.getContext('2d');
+  g.drawImage(canvas, 0, 0);
+  const fs = Math.max(14, Math.round(cv.width * 0.018));   // 常に画像幅の約1.8%
+  g.font = `700 ${fs}px system-ui, -apple-system, sans-serif`;
+  const label = 'お湯de除草 🫖';
+  const tw = g.measureText(label).width;
+  const pad = Math.round(fs * 0.55), m = Math.round(fs * 0.8), bh = Math.round(fs * 1.7);
+  const bx = cv.width - m - tw - pad * 2, by = cv.height - m - bh, r = bh / 2;
+  g.beginPath();
+  g.moveTo(bx + r, by);
+  g.arcTo(bx + tw + pad * 2, by, bx + tw + pad * 2, by + bh, r);
+  g.arcTo(bx + tw + pad * 2, by + bh, bx, by + bh, r);
+  g.arcTo(bx, by + bh, bx, by, r);
+  g.arcTo(bx, by, bx + tw + pad * 2, by, r);
+  g.closePath();
+  g.fillStyle = 'rgba(20,18,14,.55)';
+  g.fill();
+  g.fillStyle = 'rgba(255,255,255,.92)';
+  g.textBaseline = 'middle';
+  g.fillText(label, bx + pad, by + bh / 2 + fs * 0.06);
+  return cv;
+}
+
+const shareText = () => `${L.shareMsg(totalKilled)} #${SHARE_TAG}\n${SHARE_URL}`;
+
+function openSharePanel() {
+  const btnNative = document.getElementById('shareNative');
+  const aSave = document.getElementById('shareSave');
+  shareBlob = null;
+  btnNative.disabled = true;
+  aSave.removeAttribute('href');
+  buildShareShot().toBlob((blob) => {
+    if (!blob) return;
+    if (shareBlobUrl) URL.revokeObjectURL(shareBlobUrl);
+    shareBlob = blob;
+    shareBlobUrl = URL.createObjectURL(blob);
+    document.getElementById('sharePreview').src = shareBlobUrl;
+    aSave.href = shareBlobUrl;
+    btnNative.disabled = false;
+  }, 'image/png');
+  // 除草数が文言に入るので、開くたびにリンクを作り直す
+  const enc = encodeURIComponent;
+  document.getElementById('shareX').href =
+    `https://twitter.com/intent/tweet?text=${enc(L.shareMsg(totalKilled))}&url=${enc(SHARE_URL)}&hashtags=${enc(SHARE_TAG)}`;
+  document.getElementById('shareLine').href =
+    `https://line.me/R/share?text=${enc(shareText())}`;
+  openPanel('share');
+}
+document.getElementById('shareBtn').addEventListener('click', openSharePanel);
+
+// 端末の共有メニュー(対応ブラウザのみ表示。画像+テキストを一緒に渡す)
+if (!navigator.share) document.getElementById('shareNative').classList.add('hidden');
+document.getElementById('shareNative').addEventListener('click', async () => {
+  if (!navigator.share) return;
+  try {
+    const file = shareBlob && new File([shareBlob], 'oyu-de-josou.png', { type: 'image/png' });
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], text: shareText() });
+    } else {
+      await navigator.share({ text: `${L.shareMsg(totalKilled)} #${SHARE_TAG}`, url: SHARE_URL });
+    }
+  } catch (e) { /* キャンセルは正常系 */ }
+});
+
+document.getElementById('shareCopy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(shareText());
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = shareText();
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);   // 旧iOSはselect()だけでは選択されない
+    document.execCommand('copy');
+    ta.remove();
+  }
+  showToast(L.shareCopied);
+});
 document.getElementById('startBtn').addEventListener('click', closePanel);
 document.getElementById('obStartBtn').addEventListener('click', closePanel);
 
