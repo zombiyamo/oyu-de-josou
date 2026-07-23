@@ -413,8 +413,9 @@ const LOCALES = {
     shareTitle: '📷 スクショを共有',
     shareBtnLabel: 'スクショを共有・保存',
     shareMsg: (n) => n > 0
-      ? `砂利の庭の雑草を${n}本枯らしました 🫖`
+      ? `庭の雑草を${n}本枯らしました 🫖`
       : '雑草に熱湯をかけてのんびり枯らす、癒し系の箱庭ゲーム 🫖',
+    shareXCopied: 'スクショをコピーしました。投稿画面で貼り付けて添付できます 📋',
     shareNative: '📤 共有…',
     shareX: '𝕏 でポスト',
     shareLine: '💬 LINEで送る',
@@ -516,8 +517,9 @@ const LOCALES = {
     shareTitle: '📷 Share a Screenshot',
     shareBtnLabel: 'Share / save a screenshot',
     shareMsg: (n) => n > 0
-      ? `I've cleared ${n} weeds in my gravel garden 🫖`
+      ? `I've cleared ${n} weeds in my garden 🫖`
       : 'A cozy little game about pouring hot water on weeds 🫖',
+    shareXCopied: 'Screenshot copied — paste it into your post to attach 📋',
     shareNative: '📤 Share…',
     shareX: 'Post on 𝕏',
     shareLine: '💬 Share on LINE',
@@ -618,7 +620,8 @@ const LOCALES = {
     on: '开', off: '关',
     shareTitle: '📷 分享截图',
     shareBtnLabel: '分享/保存截图',
-    shareMsg: (n) => n > 0 ? `我在砂石庭院里除掉了${n}棵杂草 🫖` : '给杂草浇热水的治愈系小游戏 🫖',
+    shareMsg: (n) => n > 0 ? `我在庭院里除掉了${n}棵杂草 🫖` : '给杂草浇热水的治愈系小游戏 🫖',
+    shareXCopied: '截图已复制,在发帖界面粘贴即可附上 📋',
     shareNative: '📤 分享…',
     shareX: '发到 𝕏',
     shareLine: '💬 用LINE发送',
@@ -719,7 +722,8 @@ const LOCALES = {
     on: '켬', off: '끔',
     shareTitle: '📷 스크린샷 공유',
     shareBtnLabel: '스크린샷 공유/저장',
-    shareMsg: (n) => n > 0 ? `자갈 정원의 잡초를 ${n}포기 없앴어요 🫖` : '잡초에 뜨거운 물을 부어 없애는 힐링 게임 🫖',
+    shareMsg: (n) => n > 0 ? `정원의 잡초를 ${n}포기 없앴어요 🫖` : '잡초에 뜨거운 물을 부어 없애는 힐링 게임 🫖',
+    shareXCopied: '스크린샷을 복사했습니다. 게시 화면에 붙여넣어 첨부하세요 📋',
     shareNative: '📤 공유…',
     shareX: '𝕏에 올리기',
     shareLine: '💬 LINE으로 보내기',
@@ -3863,7 +3867,7 @@ function openSharePanel() {
   // 除草数が文言に入るので、開くたびにリンクを作り直す
   const enc = encodeURIComponent;
   document.getElementById('shareX').href =
-    `https://twitter.com/intent/tweet?text=${enc(L.shareMsg(totalKilled))}&url=${enc(SHARE_URL)}&hashtags=${enc(SHARE_TAG)}`;
+    `https://twitter.com/intent/tweet?text=${enc(shareText())}`;
   document.getElementById('shareLine').href =
     `https://line.me/R/share?text=${enc(shareText())}`;
   openPanel('share');
@@ -3882,6 +3886,19 @@ document.getElementById('shareNative').addEventListener('click', async () => {
       await navigator.share({ text: `${L.shareMsg(totalKilled)} #${SHARE_TAG}`, url: SHARE_URL });
     }
   } catch (e) { /* キャンセルは正常系 */ }
+});
+
+document.getElementById('shareX').addEventListener('click', async (e) => {
+  const href = e.currentTarget.href;
+  if (!(shareBlob && navigator.clipboard && window.ClipboardItem)) return;   // 非対応ならリンクそのまま
+  e.preventDefault();
+  let copied = false;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': shareBlob })]);
+    copied = true;
+  } catch (err) { /* コピー不可でも投稿画面は開く */ }
+  window.open(href, '_blank', 'noopener');
+  if (copied) showToast(L.shareXCopied, 8000);
 });
 
 document.getElementById('shareCopy').addEventListener('click', async () => {

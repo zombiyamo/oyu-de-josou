@@ -111,6 +111,17 @@ const { launch, INDEX } = require('./_launch');
     t('共有メニュー非対応時はボタンが隠れる', await page.evaluate(() =>
       !!navigator.share ||
       document.getElementById('shareNative').classList.contains('hidden')));
+    // Xボタン: 押すと投稿画面が開く(文言+ハッシュタグ+URLがtextに入っている)
+    await page.evaluate(() => {
+      window._openedUrl = null;
+      window.open = (u) => { window._openedUrl = u; return null; };
+    });
+    await page.click('#shareX');
+    await waitFor(page, () => window._openedUrl !== null);
+    t('Xボタンで投稿画面が開く(文言+タグ+URL入り)', await page.evaluate(() =>
+      window._openedUrl && window._openedUrl.includes('twitter.com/intent/tweet') &&
+      window._openedUrl.includes(encodeURIComponent('#お湯de除草')) &&
+      window._openedUrl.includes(encodeURIComponent('https://zombiyamo.github.io/oyu-de-josou/'))));
     await page.evaluate(() => closePanel());
 
     // ショップ購入 → ポイント減・設置・保存
